@@ -4,6 +4,7 @@
 import { loadSongs } from './store.js';
 import { renderLibrary } from './screens/library.js';
 import { showSong, openPicker, closePicker, setCapo } from './screens/song.js';
+import { CAPO_MAX } from './engine/song.js';
 
 const SCREENS = { library: 'library', song: 'songScreen' };
 
@@ -26,6 +27,6 @@ addEventListener('keydown', e => {
 const Q = new URLSearchParams(location.search);
 if (library.songs[Q.get('song')]) {
   openSong(+Q.get('song'));
-  if (Q.has('capo')) setCapo(Math.min(7, Math.max(0, Math.round(+Q.get('capo')) || 0)));
+  if (Q.has('capo')) setCapo(Math.min(CAPO_MAX, Math.max(0, Math.round(+Q.get('capo')) || 0)));
   if (Q.has('pick')) openPicker(Q.get('pick'));
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm } from '../app/src/engine/practice.js';
+import { soundingName, strumSummary, slowBpm, capoOf } from '../app/src/engine/practice.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
   assert.equal(soundingName('G', 0), 'G');
@@ -12,8 +12,29 @@ test('with a capo the chord names sound higher by its fret', () => {
 });
 
 test('a slash chord moves its bass with the capo', () => {
-  assert.equal(soundingName('D/F#', 2), 'E/Ab');
+  assert.equal(soundingName('D/F#', 2), 'E/G#');
   assert.equal(soundingName('G/B', 1), 'Ab/C');
+});
+
+const perfect = { title: 'Perfect', bpm: 63, capo: 1, bars: ['G', 'Em7', 'Cadd9', 'D', 'D/F#', 'G/B'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
+
+test('the names are spelled in the key the song sounds in: flats for a flat key', () => {
+  assert.deepEqual(['G', 'Em7', 'Cadd9', 'D', 'D/F#', 'G/B'].map(c => soundingName(c, 1, perfect)), ['Ab', 'Fm7', 'Dbadd9', 'Eb', 'Eb/G', 'Ab/C']);
+});
+
+test('the names are spelled in the key the song sounds in: sharps for a sharp key', () => {
+  // capo 2: G sounds as A, a sharp key, so C sounds as C# and D/F# as E/G#
+  assert.deepEqual(['C', 'D/F#', 'Bm'].map(c => soundingName(c, 2, perfect)), ['D', 'E/G#', 'C#m']);
+});
+
+test("a song that starts on a minor chord is spelled in its relative major's key", () => {
+  // a minor first chord takes its relative major's key: Dm with capo 3 is Fm, the key of Ab, so flats
+  const minor = { ...perfect, bars: [{ chord: 'Dm', strum: 'D.DU.UDU' }] };
+  assert.equal(soundingName('A', 3, minor), 'C');
+  assert.equal(soundingName('E', 3, minor), 'G');
+  assert.equal(soundingName('F#', 3, minor), 'A');
+  assert.equal(soundingName('C#', 3, minor), 'E');
+  assert.equal(soundingName('Bb', 3, minor), 'Db');
 });
 
 const bar = (strum, section) => ({ chord: 'G', strum, ...(section ? { section } : {}) });
@@ -39,4 +60,11 @@ test('picked bars are patterns too, told apart by the strings they pick', () => 
 test('playing it slowly is 70% of the song tempo, rounded', () => {
   assert.equal(slowBpm({ bpm: 64 }), 45);
   assert.equal(slowBpm({ bpm: 100 }), 70);
+});
+
+test("the capo is the one you chose, else the song's, else none", () => {
+  assert.equal(capoOf({ capo: 2 }, 5), 5);
+  assert.equal(capoOf({ capo: 2 }, 0), 0);
+  assert.equal(capoOf({ capo: 2 }, undefined), 2);
+  assert.equal(capoOf({}, undefined), 0);
 });

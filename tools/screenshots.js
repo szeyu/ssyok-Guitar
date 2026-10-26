@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const STATES = [
   { name: 'library', path: 'app/', size: [1280, 800] },
   { name: 'library-narrow', path: 'app/', size: [390, 844] },
-  { name: 'song', path: null, size: [1280, 800], skip: 'ticket 03 adds its URL' },
+  { name: 'song', path: 'app/?song=2', size: [1280, 800] },
   { name: 'player-mid-song', path: null, size: [1280, 800], skip: 'ticket 04 adds its URL' },
   { name: 'tools', path: null, size: [1280, 800], skip: 'ticket 04 adds its URL' },
   { name: 'results', path: null, size: [1280, 800], skip: 'ticket 07 adds its URL' },

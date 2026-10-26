@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateSong, slotAt, slotsPerBar, chordsUsed, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar } from '../app/src/engine/song.js';
+import { chordsUsed } from '../app/src/engine/chords.js';
+import { validateSong, slotAt, slotsPerBar, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar } from '../app/src/engine/song.js';
 
 const song = (over = {}) => ({ title: 'x', bpm: 80, bars: [{ chord: 'G', strum: 'D.DU.UDU' }], ...over });
 
@@ -126,7 +127,8 @@ test('a song has lyrics when any bar has a lyric or timed syllables', () => {
   assert.equal(hasLyrics(song({ bars: [{ chord: 'G', strum: 'D.DU.UDU', syllables: 'la . . . . . . .' }] })), true);
 });
 
-test('the main strum is the first strummed bar, or bar 0 when every bar is picked', () => {
+test('the main strum is the first bar of the most used strum, or of the most used picking when no bar is strummed', () => {
   assert.equal(mainStrumBar(song({ bars: [{ chord: 'G', pluck: '6 . . . . . . .' }, { chord: 'G', strum: 'D.DU.UDU' }] })), 1);
-  assert.equal(mainStrumBar(song({ bars: [{ chord: 'G', pluck: '6 . . . . . . .' }] })), 0);
+  assert.equal(mainStrumBar(song({ bars: [{ chord: 'G', strum: 'D.D.D.D.' }, { chord: 'G', strum: 'D.DU.UDU' }, { chord: 'C', strum: 'D.DU.UDU' }] })), 1);
+  assert.equal(mainStrumBar(song({ bars: [{ chord: 'G', pluck: '6 . . . . . . .' }, { chord: 'G', pluck: '5 . . . . . . .' }, { chord: 'G', pluck: '5 . . . . . . .' }] })), 1);
 });

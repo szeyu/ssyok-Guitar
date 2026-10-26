@@ -1,5 +1,6 @@
 // A chord box: the chord's shape as an SVG diagram, thickest string on the left, the nut at the top. Colours come from the
 // .cb-* rules in app.css (tokens), so nothing here names a colour: dots by finger (f1-f4), x for a string not played, o for open.
+import { fingerStrings } from '../engine/chords.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; };
@@ -15,7 +16,7 @@ export function chordBox(shape) {
   for (let f = base === 1 ? 1 : 0; f <= FRETS; f++) box.append(svg('line', { class: 'cb-fret', x1: L, y1: fy(f), x2: R, y2: fy(f) }));
   for (let s = 0; s < 6; s++) box.append(svg('line', { class: 'cb-str', x1: sx(s), y1: TOP, x2: sx(s), y2: fy(FRETS), 'stroke-width': (2.2 - .28 * s).toFixed(2) }));
   for (let f = 1; f <= 4; f++) {                          // one finger can hold several strings at one fret: a barre, drawn as a bar
-    const ss = shape.fingers.flatMap((x, s) => x === f && shape.frets[s] > 0 ? [s] : []);
+    const ss = fingerStrings(shape, f);
     if (!ss.length) continue;
     const y = fy(shape.frets[ss[0]] - base + .5), x1 = sx(ss[0]), x2 = sx(ss.at(-1));
     if (x2 > x1) box.append(svg('rect', { class: 'cb-bar f' + f, x: x1, y: y - 7, width: x2 - x1, height: 14 }));

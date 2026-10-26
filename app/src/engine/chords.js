@@ -29,6 +29,12 @@ export const CHORDS = {
   ],
 };
 
+/** The chords one bar plays, in order; several share the bar evenly. */
+export const barChords = bar => bar.chord.trim().split(/\s+/);
+
+/** The chords a song uses, each once, in the order they first sound. */
+export const chordsUsed = song => [...new Set(song.bars.flatMap(barChords))];
+
 const sameShape = (a, b) => a.frets.join() === b.frets.join() && a.fingers.join() === b.fingers.join();
 
 /** The ways to play a chord in this song: the library's shapes, then the song's own that the library lacks. The library is not changed. */
@@ -44,14 +50,23 @@ export function voicingIndex(song, name, picks) {
   return pick >= 0 && pick < shapes.length ? pick : Math.max(0, mine);
 }
 
+/** How the picker marks shape i of a chord: "the song's" for the song's own shape, "default" for the library's first when the
+ *  song has none, else ''. */
+export function shapeLabel(song, name, i) {
+  const own = song.chords?.[name] ? voicingIndex(song, name, {}) : -1;
+  return i === own ? "the song's" : i === 0 && own < 0 ? 'default' : '';
+}
+
 /** The fingering to play for a chord in this song, given your picks. */
 export const voicing = (song, name, picks) => chordShapes(song, name)[voicingIndex(song, name, picks)];
 
 // Where a finger sits on the neck, in cm (the nut 65 cm from the bridge, strings fanning from 5.4 to 3.6 cm wide): a point,
 // or the middle of a bar across strings. Fingers sharing a fret sit side by side along it. null when the finger is not used.
 const SCALE = 65, fretX = n => SCALE * 2 ** (-n / 12), stringZ = (s, x) => (s / 5 - .5) * (5.4 - 1.8 * x / SCALE);
+/** The string indices (0 = thickest) finger f (1-4) presses in a shape; several strings at one fret is a barre. */
+export const fingerStrings = (v, f) => v.fingers.flatMap((x, s) => x === f && v.frets[s] > 0 ? [s] : []);
 function fingerAt(v, f) {
-  const ss = v.fingers.flatMap((x, s) => x === f && v.frets[s] > 0 ? [s] : []);
+  const ss = fingerStrings(v, f);
   if (!ss.length) return null;
   const fr = v.frets[ss[0]], mates = [...new Set(v.fingers.filter((x, s) => x && v.frets[s] === fr))].sort(), n = mates.length;
   const x = fretX(fr) + (fretX(fr - 1) - fretX(fr)) * (n > 1 ? .7 - .42 * mates.indexOf(f) / (n - 1) : .35);
@@ -64,18 +79,21 @@ const travel = (a, b) => [1, 2, 3, 4].reduce((cost, f) => { const p = fingerAt(a
  *  bar leading back to the first. A barre (hard) shape is never chosen for a chord that has an open one. */
 // ponytail: tries every combination; fine for a song's handful of chords with a few shapes each, needs a smarter search past a few thousand
 export function easiestFingerings(song) {
-  const seq = song.bars.flatMap(b => b.chord.trim().split(/\s+/)), names = [...new Set(seq)];
+  const seq = song.bars.flatMap(barChords), names = chordsUsed(song);
   const options = Object.fromEntries(names.map(name => {
     const all = chordShapes(song, name).map((v, i) => i), open = all.filter(i => !chordShapes(song, name)[i].hard);
     return [name, open.length ? open : all];
   }));
-  const changes = new Map();                                    // each change from one chord to another, with how often it happens
-  seq.forEach((c, n) => { const key = c + ' ' + seq[(n + 1) % seq.length]; changes.set(key, (changes.get(key) ?? 0) + 1); });
+  const changes = new Map();                                    // from-chord to (to-chord to how often that change happens)
+  seq.forEach((a, n) => {
+    const b = seq[(n + 1) % seq.length], to = changes.get(a) ?? changes.set(a, new Map()).get(a);
+    to.set(b, (to.get(b) ?? 0) + 1);
+  });
   let best, bestCost = Infinity;
   const go = (i, choice) => {
     if (i < names.length) return options[names[i]].forEach(v => go(i + 1, { ...choice, [names[i]]: v }));
     let cost = 0;
-    for (const [key, times] of changes) { const [a, b] = key.split(' '); cost += times * travel(chordShapes(song, a)[choice[a]], chordShapes(song, b)[choice[b]]); }
+    for (const [a, to] of changes) for (const [b, times] of to) cost += times * travel(chordShapes(song, a)[choice[a]], chordShapes(song, b)[choice[b]]);
     if (cost < bestCost) { bestCost = cost; best = choice; }
   };
   go(0, {});

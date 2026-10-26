@@ -1,6 +1,6 @@
 // The song engine: a song file in, answers out. Pure: no DOM, audio, 3D or shared state.
 // A song is bars of eighth-note slots: beats × 2 per bar (6/8 is beats: 3 with compound: true, counted 1 to 6).
-import { CHORDS } from './chords.js';
+import { CHORDS, barChords } from './chords.js';
 
 const COUNT = ['1', '&', '2', '&', '3', '&', '4', '&'];
 export const NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -11,6 +11,9 @@ const words = s => s.trim().split(/\s+/);
 // The strum vocabulary, one character per eighth-note slot: D down, U up, > accented down, x chuck (a muted hit),
 // and REST, where the hand swings past without touching (REST is also a picked bar's rest).
 const HITS = 'DU>x', REST = '.';
+
+/** The highest fret a capo can go on; 0 is no capo. */
+export const CAPO_MAX = 7;
 
 /** A guitarist's string number (6 = thickest … 1 = thinnest) as a string index (0 = thickest). Its own inverse. */
 export const stringIndex = number => 6 - number;
@@ -24,7 +27,7 @@ export function validateSong(song) {
   if (!song || typeof song !== 'object' || Array.isArray(song)) return ['The song must be one JSON object: { "title": ..., "bpm": ..., "bars": [...] }'];
   if (typeof song.title !== 'string' || !song.title.trim()) err.push('"title" is missing.');
   if (!whole(song.bpm, 40, 200)) err.push('"bpm" must be a whole number from 40 to 200.');
-  if (song.capo !== undefined && !whole(song.capo, 0, 7)) err.push('"capo" must be a whole number from 0 to 7.');
+  if (song.capo !== undefined && !whole(song.capo, 0, CAPO_MAX)) err.push(`"capo" must be a whole number from 0 to ${CAPO_MAX}.`);
   if (song.beats !== undefined && song.beats !== 3 && song.beats !== 4) err.push('"beats" (beats in a bar) must be 3 or 4.');
   if ((song.compound !== undefined && typeof song.compound !== 'boolean') || (song.compound && song.beats !== 3)) err.push('"compound": true (6/8 time) needs "beats": 3, which gives six eighth notes in a bar.');
   const beats = song.beats === 3 ? 3 : 4, slots = slotsPerBar(song);
@@ -71,9 +74,22 @@ export const hasMelody = song => song.bars.some(bar => bar.tune);
 /** Whether any bar has words, plain or timed. */
 export const hasLyrics = song => song.bars.some(bar => bar.lyric || bar.syllables);
 
-/** The bar that shows how the song is strummed: the first strummed bar, or bar 0 when every bar is picked. */
-// ponytail: the first strummed bar; the strum summary (ticket 03) can pick the most used one
-export const mainStrumBar = song => Math.max(0, song.bars.findIndex(bar => bar.strum));
+/** Each different strum (or picking pattern) in the song, most used first: the first bar that plays it, how many bars do,
+ *  and the section it first turns up in (null before any section). */
+export function strumPatterns(song) {
+  const seen = new Map();
+  let section = null;
+  song.bars.forEach((b, n) => {
+    section = b.section ?? section;
+    const key = (b.strum ?? '') + '|' + (b.pluck ? words(b.pluck).join(' ') : '');
+    if (!seen.has(key)) seen.set(key, { bar: n, bars: 0, section });
+    seen.get(key).bars++;
+  });
+  return [...seen.values()].sort((a, b) => b.bars - a.bars);
+}
+
+/** The bar that shows how the song is strummed: the first bar of the most used strum, or of the most used picking when no bar is strummed. */
+export const mainStrumBar = song => { const all = strumPatterns(song); return (all.find(p => song.bars[p.bar].strum) ?? all[0]).bar; };
 
 /** How a stroke is drawn: an arrow for a strum (dashed = swing past without touching), string numbers for a pick, ✕ for a chuck.
  *  tone is down, up, pluck or mute. */
@@ -84,8 +100,6 @@ export function strokeGlyph(stroke) {
   return stroke.hit ? { text: down ? '↓' : '↑', tone: down ? 'down' : 'up' } : { text: down ? '⇣' : '⇡', tone: 'mute' };
 }
 
-/** The chords a song uses, each once, in the order they first sound. */
-export const chordsUsed = song => [...new Set(song.bars.flatMap(b => words(b.chord)))];
 
 // What the hand does on one slot of a bar. A mixed bar (strum and pluck) strums where the strum hits and picks elsewhere.
 function strokeOf(bar, i, compound) {
@@ -115,7 +129,7 @@ function strokeOf(bar, i, compound) {
  */
 export function slotAt(song, slot) {
   const per = slotsPerBar(song), n = Math.floor(slot / per), i = slot % per, bar = song.bars[n];
-  const chords = words(bar.chord);
+  const chords = barChords(bar);
   const timed = bar.syllables ? words(bar.syllables).map(x => x === '.' ? '' : x) : null;
   const tune = bar.tune ? words(bar.tune)[i] : '.';
   return {
