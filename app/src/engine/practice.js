@@ -28,6 +28,9 @@ export const strumSummary = song => strumPatterns(song).map(p => ({ ...p, most: 
 /** The tempo range the player offers, in the song's own unit (quarter notes, or the dotted-quarter pulse in 6/8). */
 export const TEMPO_MIN = 40, TEMPO_MAX = 140;
 
+/** "A bit slower" on the results card: 85% of the tempo just played, rounded, no slower than TEMPO_MIN. */
+export const slower = bpm => Math.max(TEMPO_MIN, Math.round(bpm * .85));
+
 /** "Speed up each loop": 5 bpm more each time a loop comes round, up to TEMPO_MAX. */
 export const speedUp = bpm => Math.min(TEMPO_MAX, bpm + 5);
 

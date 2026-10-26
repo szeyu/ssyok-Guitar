@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn, strumSteps, stepAt, stepSong, STEP_BARS } from '../app/src/engine/practice.js';
+import { soundingName, strumSummary, slowBpm, slower, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn, strumSteps, stepAt, stepSong, STEP_BARS } from '../app/src/engine/practice.js';
 import { handAt, playedAt } from '../app/src/engine/hand.js';
 import { slotAt, sections, lyricLines, validateSong, slotsPerBar, meterOf } from '../app/src/engine/song.js';
 
@@ -62,6 +62,12 @@ test('picked bars are patterns too, told apart by the strings they pick', () => 
 test('playing it slowly is 70% of the song tempo, rounded', () => {
   assert.equal(slowBpm({ bpm: 64 }), 45);
   assert.equal(slowBpm({ bpm: 100 }), 70);
+});
+
+test('a bit slower is 85% of the tempo just played, rounded, no slower than TEMPO_MIN', () => {
+  assert.equal(slower(100), 85);
+  assert.equal(slower(81), 69);
+  assert.equal(slower(TEMPO_MIN), TEMPO_MIN);
 });
 
 test("the capo is the one you chose, else the song's, else none", () => {

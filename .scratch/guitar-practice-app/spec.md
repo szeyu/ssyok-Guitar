@@ -26,7 +26,7 @@ The player shows:
 - the words under the line
 - a section timeline across the top
 
-One clock drives sound, 3D and lane together. You can loop the whole song, one bar, or one chord change, and change the tempo. You tap along with the arrow keys, or let the microphone listen. Each stroke gets a verdict word: Good, Early or Late by so many ms, or wrong direction. At the end, a results card shows your timing score and the bar that gave you the most trouble.
+One clock drives sound, 3D and lane together. You can loop the whole song, one bar, or one chord change, and change the tempo. (The whole song plays to its end and shows the results card; the other loops go round.) You tap along with the arrow keys, or let the microphone listen. Each stroke gets a verdict word: Good, Early or Late by so many ms, or wrong direction. At the end, a results card shows your timing score and the bar that gave you the most trouble.
 
 Each song is a file in the songs folder. It charts the recording's guitar part: riffs, passing chords, the chart's voicings and the real strum. A song can have a second version with the melody, for example a fingerstyle tab. New songs can be added in an in-app builder or pasted as a song file. The look is the Hum design: cream card stock, blue-black ink, one pear accent, and the 3D scene as a dark window.
 

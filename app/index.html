@@ -69,7 +69,7 @@
   </header>
   <div id="tools" class="tools" role="group" aria-label="Tools" hidden>
     <button id="melody" type="button" aria-pressed="true"><span>Melody<small>Plays the tune over the chords, for songs that have one</small></span></button>
-    <button id="ramp" type="button" aria-pressed="false"><span>Speed up each loop<small>Adds 5 bpm every time a loop comes round</small></span></button>
+    <button id="ramp" type="button" aria-pressed="false"><span>Speed up each loop<small>Adds 5 bpm each time a bar, chord-change or step loop comes round</small></span></button>
     <button id="playerView" type="button" aria-pressed="true"><span>Player's view<small>Off: the guitar as the audience sees it</small></span></button>
     <button id="showHand" type="button" aria-pressed="true"><span>Show the hand<small>Off: only the finger dots, so the strings show clearly</small></span></button>
   </div>
@@ -85,7 +85,7 @@
     </div>
   </div>
   <div id="results" class="results" hidden>
-    <div class="card" role="dialog" aria-labelledby="resultsHead">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="resultsHead">
       <h2 id="resultsHead">That's the song</h2>
       <p id="resultsScore" class="big"></p>
       <p id="resultsSay"></p>

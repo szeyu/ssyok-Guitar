@@ -5,8 +5,8 @@
 //   &tools=1       with the Tools menu open       &bpm=<n>      at that tempo  &go=1         playing (needs autoplay allowed)
 //   &view=audience the 3D seen as the audience sees it   &hand=0  without the 3D hand   &perf  3D frame times and resolution scale
 //   &drill=<n>     the player at strum step n (play=1 not needed)
-//   &verdict=<words>  a verdict over the hit line, held still (e.g. Late 40 ms; empty: Good)
-//   &done=1        the results card, from a fixed made-up run of taps judged by the real engine (player.js demoResults)
+//   &verdict=<words>  a verdict over the hit line, held still (e.g. Late 40 ms; empty: Good)   &tone=good|off|bad  its colour (default off; Good: good)
+//   &done=1        the results card, from a fixed made-up run of taps judged by the real engine (results.js demoRun)
 //   &log           a trace of scheduled and drawn slot times in the console (run it with node tools/trace.js <url>)
 import { loadSongs } from './store.js';
 import { renderLibrary } from './screens/library.js';
@@ -28,7 +28,7 @@ if (library.songs[Q.get('song')]) {
     playSong({ step: Math.round(+Q.get('drill')) || 0, tempo: +Q.get('bpm') || undefined, bar: (Math.round(+Q.get('at')) || 1) - 1, play: Q.has('go') });
     if (Q.has('tools')) toggleTools(true);
     setView({ player: Q.get('view') !== 'audience', hand: Q.get('hand') !== '0' });
-    if (Q.has('verdict')) showVerdict(Q.get('verdict') || 'Good', true);
+    if (Q.has('verdict')) showVerdict({ text: Q.get('verdict') || 'Good', tone: Q.get('tone') || (Q.get('verdict') ? 'off' : 'good') }, true);
     if (Q.has('done')) demoResults();
   }
 }

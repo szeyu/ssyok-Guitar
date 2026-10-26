@@ -1,10 +1,10 @@
 // The player: the top bar with the song and its section timeline (or the strum steps' stepper), the Tools menu, the stage (the two 3D windows with the
-// floating chord box, the strum lane, the verdict word on each tap), the transport, and the results card at the song's end. One clock drives the sound, the 3D, the lane and the count-in;
+// floating chord box, the strum lane, the verdict word on each tap), the transport, and the results card at the song's end (results.js). One clock drives the sound, the 3D, the lane and the count-in;
 // nothing is drawn while the player is hidden, or while it is paused with nothing changing.
 import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
-import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, slowBpm, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
-import { judge, summary } from '../engine/judge.js';
+import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, slower, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { judge } from '../engine/judge.js';
 import { handAt, playedAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
@@ -12,6 +12,7 @@ import { drawLane, positionAt, hitLineY } from '../views/lane.js';
 import { chordBox } from '../views/chordbox.js';
 import { el } from '../views/dom.js';
 import { showScreen, onScreen, screenShowing } from './shell.js';
+import { showResults, closeResults, resultsShowing, demoRun } from './results.js';
 
 const $ = id => document.getElementById(id);
 const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace of when each slot is scheduled and when it is drawn
@@ -24,12 +25,13 @@ let playerView = true, showHand = true, scenes;               // scenes: the 3D 
 let drawn, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
 const resetDrawn = () => { drawn = { slot: -1, words: '', chord: '', next: '' }; };
 resetDrawn();
-// the run being judged: a verdict for each tap, and the song slots played (not counted in), for the results card
-let verdicts = [], played = new Set();
-const resetRun = () => { verdicts = []; played = new Set(); };
+// the run being judged, for the results card: the song playing (a stage while stepping), a verdict for each tap, and the song slots played (not counted in)
+let run;
+const resetRun = () => { run = { song, verdicts: [], played: new Set() }; };
 const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
 const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
 const per = () => slotsPerBar(song);
+const songEnds = () => kind === 'song' && !step;                // the whole song plays to its end and shows the results card; every other loop goes round
 const fretsOf = chord => voicing(song, chord, picks).frets;
 const still = matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: the hand still moves (it shows the change); the strings do not glow or shake, the strum arrow does not swing, the fingers do not pop
 
@@ -38,7 +40,7 @@ const clock = createClock({
     const { pulses, slots } = countIn(song);
     if (counting) { if ((start - slot) % slots === 0) synth.click(t, start - slot === pulses * slots); return; }
     const songAt = songSlot(song, loop, slot), here = slotAt(song, songAt), inBar = songAt % per(), stroke = here.stroke;
-    played.add(songAt);
+    run.played.add(songAt);
     if (LOG) { scheduled.set(slot, t); console.log(`PLAY slot=${slot} at=${t.toFixed(3)} bar=${here.bar + 1} count=${here.count} chord=${here.chord} bpm=${bpm}`); }
     if (inBar % slots === 0) synth.click(t, inBar === 0);
     if (melody && here.note) synth.sing(here.note.hz * 2 ** (capo / 12), t, here.note.slots / rate());
@@ -49,7 +51,7 @@ const clock = createClock({
     synth.strum(frets.map(up), stroke.dir, stroke.accent, t);
   },
   lap(time) {                                                   // a loop comes round: a little faster if asked (the clock takes the new rate from here)
-    if (kind === 'song' && !step) return 0;                     // the whole song (not a stage) ends instead, and shows how it went
+    if (songEnds()) return 0;                                   // the whole song (not a stage) ends instead, and shows how it went
     if (ramp) { bpm = speedUp(bpm); sped = { time, bpm }; }
     return rate();
   },
@@ -114,56 +116,44 @@ function showWhere(songAt) {
 }
 
 // ---- judging: the arrow keys tap along, a verdict word rises off the hit line, and the song's end shows the results ----
-const placeVerdict = () => { $('verdict').style.top = `${$('lane').offsetTop + hitLineY($('lane')) - 56}px`; };   // just above the hit line
-/** Shows a verdict's words over the hit line: rising and fading, or with held true staying put (the ?verdict flag). */
-export function showVerdict(text, held = false) {
+const VERDICT_ABOVE = 56, VERDICT_RISE = 48, VERDICT_MS = 900;   // px the word sits above the hit line, px it rises, how long it shows
+const placeVerdict = () => { $('verdict').style.top = `${$('lane').offsetTop + hitLineY($('lane')) - VERDICT_ABOVE}px`; };
+/** Shows a verdict ({ text, tone } as judge gives it) over the hit line: rising and fading, or with held true staying put (the ?verdict flag). */
+export function showVerdict({ text, tone }, held = false) {
   const v = $('verdict');
-  v.textContent = text; v.dataset.tone = text === 'Good' ? 'good' : / here$/.test(text) ? 'bad' : 'off';
+  v.textContent = text; v.dataset.tone = tone;
   placeVerdict();
   v.classList.toggle('held', held);
   v.getAnimations().forEach(a => a.cancel());
   if (!held) v.animate(still.matches ? [{ opacity: 1 }, { opacity: 1, offset: .6 }, { opacity: 0 }]   // reduced motion: no rise
-    : [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 1, offset: .4 }, { opacity: 0, transform: 'translateY(-48px)' }], { duration: 900, easing: 'ease-out' });
+    : [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 1, offset: .4 }, { opacity: 0, transform: `translateY(-${VERDICT_RISE}px)` }], { duration: VERDICT_MS, easing: 'ease-out' });
 }
 
-/** Judges a tap going dir ('D' or 'U') pressed ago seconds back, against the nearest slot of the song as it is heard. */
+/** Judges a tap going dir ('D' or 'U') pressed ago seconds back, against the nearest stroke of the song as it is heard. A tap after
+ *  the whole song's end (the clock holds there) is not judged. */
 function tap(dir, ago) {
   const { pos, countLeft } = clock.now(ago);
   if (countLeft > .5) return;                                   // still counting in (half a slot early is the first stroke, early)
-  const at = pos - countLeft, near = Math.round(at), v = judge(song, songSlot(song, loop, near) + at - near, dir, rate());
-  verdicts.push(v); showVerdict(v.text);
+  const at = pos - countLeft, near = Math.round(at);
+  // the whole song never wraps, so the position is the song's own; a loop brings it into the song at the nearest slot
+  const v = judge(song, songEnds() ? at : songSlot(song, loop, near) + at - near, dir, rate());
+  if (!v) return;
+  run.verdicts.push(v); showVerdict(v);
 }
 
 // the song has played to its end: stop, go back to the start, and show how it went
-function finish() { togglePlay(); seek(0); showResults(); }
+function finish() { togglePlay(); seek(0); openResults(); }
 
-/** The results card for the run so far: the on-time percentage and the bar with the most misses, by number and section. */
-export function showResults() {
-  const r = summary(source, verdicts, played), bar = r.worstBar;
-  const sec = bar === null ? null : sections(source).findLast(x => x.bar <= bar);
-  $('resultsScore').textContent = r.taps ? `${r.percentOnTime}%` : '';
-  $('resultsSay').textContent = !r.taps ? 'Next time, tap the down and up arrows along with the strokes, and you will see how your timing went.'
-    : `${r.onTime} of ${r.hits} strokes on time.` + (bar === null ? ' Not one miss.' : ` Bar ${bar + 1}${sec.name !== 'Start' ? `, in ${sec.name},` : ''} gave you the most trouble.`);
-  $('practiseBar').hidden = !r.taps || bar === null;
-  $('practiseBar').dataset.bar = bar;
-  $('results').hidden = false; $('again').focus();
-}
-function closeResults() { $('results').hidden = true; resetRun(); }
+const openResults = () => showResults(run, {
+  again: togglePlay,
+  slower: () => { setTempo(slower(bpm)); togglePlay(); },
+  practise: bar => { setTempo(slower(bpm)); seek(bar * per()); setLoop('bar'); togglePlay(); },   // like the prototype: a bit slower, round that bar
+  songs: () => showScreen('library'),
+  close: resetRun,
+});
 
-/** ?done: the results card from a fixed made-up run fed through the real judging, so its numbers are what the engine says:
- *  every stroke of the song tapped the right way, a little off but inside the window, except that every 17th slot's stroke
- *  is left untapped and bar 3 is all late (140 ms, or less at a fast tempo, so it stays nearest its own slot). */
-export function demoResults() {
-  resetRun();
-  for (let s = 0; s < source.bars.length * per(); s++) {
-    played.add(s);
-    const { stroke, bar } = slotAt(source, s);
-    if (!stroke.hit || s % 17 === 5) continue;
-    const ms = bar === 2 ? Math.min(140, 400 / rate()) : s % 5 * 12;
-    verdicts.push(judge(source, s + ms / 1000 * rate(), stroke.dir, rate()));
-  }
-  showResults();
-}
+/** ?done: the results card from a fixed run of taps through the real judging (results.js demoRun). */
+export function demoResults() { run = demoRun(song, rate()); openResults(); }
 
 // ---- the transport ----
 function showTempo(v) {
@@ -191,7 +181,7 @@ function seek(slot) {
 function togglePlay() {
   if (clock.playing) { clock.stop(); synth.volume(false); }
   else {
-    if (!$('results').hidden) closeResults();                   // Space on the card: play again
+    closeResults();                                             // Space on the card: play again
     const ctx = audioContext(); ctx.resume();
     synth ??= createSynth(ctx); synth.volume(true);
     const { pulses, slots } = countIn(song);
@@ -261,10 +251,6 @@ $('stepsDone').onclick = () => setStep(0);
 $('stepPrev').onclick = () => setStep(step.n - 1);
 $('stepNext').onclick = () => setStep(step.n + 1);   // past the last step: the song
 $('reset').onclick = () => { resetRun(); seek(0); };
-$('again').onclick = () => { closeResults(); togglePlay(); };
-$('slower').onclick = () => { closeResults(); setTempo(slowBpm({ bpm })); togglePlay(); };   // 70% of the tempo just played
-$('practiseBar').onclick = () => { const bar = +$('practiseBar').dataset.bar; closeResults(); seek(bar * per()); setLoop('bar'); togglePlay(); };
-$('resultsSongs').onclick = () => { closeResults(); showScreen('library'); };
 $('tempo').min = TEMPO_MIN; $('tempo').max = TEMPO_MAX;
 $('tempo').oninput = e => setTempo(+e.target.value);
 $('loop').replaceChildren(...LOOPS.map(([k, label]) => el('button', { type: 'button', textContent: label, onclick: () => setLoop(k) })));
@@ -294,7 +280,7 @@ document.fonts?.addEventListener?.('loadingdone', redraw);
 
 onScreen('player', {
   esc() {                                                       // Esc closes the results card, then Tools, then leaves the steps, then the player
-    if (!$('results').hidden) { closeResults(); $('play').focus(); } else if (!$('tools').hidden) toggleTools(false); else if (step) setStep(0); else showScreen('song');
+    if (resultsShowing()) closeResults(); else if (!$('tools').hidden) toggleTools(false); else if (step) setStep(0); else showScreen('song');
   },
   leave() { if (clock.playing) togglePlay(); toggleTools(false); closeResults(); },
 });
