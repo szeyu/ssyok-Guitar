@@ -21,7 +21,7 @@
 <section id="songScreen" class="screen" hidden>
   <header class="prepHead">
     <div>
-      <button id="songBack" class="ghost back" type="button">Songs</button>
+      <div class="nav"><button id="songBack" class="ghost back" type="button">Songs</button><button id="resume" class="ghost back" type="button" hidden></button></div>
       <h1 id="songTitle"></h1>
       <p id="songMeta" class="meta"></p>
     </div>
@@ -42,7 +42,6 @@
       <h2>The strum</h2>
       <div id="strums" class="strums"></div>
       <h2>Start</h2>
-      <!-- ponytail: the links lead to screens a later ticket builds (whole-song sheet and builder 09); no-ops until then -->
       <div class="ways">
         <button id="goSteps" type="button"><i>1</i><b>Learn the strum</b><span>Step by step, slowly, over the first chords</span></button>
         <button id="goSlow" type="button"><i>2</i><b>Play it slowly</b><span id="slowNote"></span></button>
@@ -51,6 +50,51 @@
       <div class="links"><button id="whole" class="ghost" type="button">Whole song</button><button id="edit" class="ghost" type="button">Edit song</button></div>
     </div>
   </div>
+</section>
+
+<section id="builder" class="screen" aria-labelledby="builderHead" hidden>
+  <button id="builderBack" class="ghost back" type="button">Cancel</button>
+  <h1 id="builderHead">Add a song</h1>
+  <p id="builderNote" class="lead"></p>
+  <div class="fields">
+    <label>Title <input id="bTitle" autocomplete="off" placeholder="My song" size="26"></label>
+    <label>Tempo <input id="bBpm" type="number" min="40" max="200" step="1"> bpm</label>
+    <div class="capoRow" role="group" aria-label="Capo fret"><span>Capo</span><div id="bCapo" class="pills"></div></div>
+    <div class="capoRow" role="group" aria-label="Beats in a bar"><span>Beats in a bar</span><div id="bBeats" class="pills wide"></div></div>
+  </div>
+  <p class="hint">Choose a chord for each bar, then click a stroke to change it: hit, hit harder, muted chuck, or swing past without touching. Switch a bar to picked to pluck single strings (6 is the thickest). A bar with several chords, or strummed and picked together, is edited as text.</p>
+  <ol id="bBars" class="bars"></ol>
+  <button id="bAdd" type="button">Add a bar</button>
+  <div id="bErrors" class="errors" role="alert" hidden><h2>The song can't be saved yet</h2><ul></ul></div>
+  <details>
+    <summary>Paste lyrics</summary>
+    <p class="hint">Paste the whole song from a lyrics page and fit it to the sections: a heading such as [Verse 1] or a blank line ends each block, and each block goes on the next sung section, spread evenly. Intros, instrumentals, solos and outros are skipped. Or put one line every few bars.</p>
+    <label class="area">Lyrics <textarea id="lyrText" rows="7"></textarea></label>
+    <div class="fields">
+      <button id="lyrFit" type="button">Fit to the sections</button>
+      <label>One line every <input id="lyrEvery" type="number" min="1" max="16" value="4"> bars</label>
+      <label>from bar <input id="lyrFrom" type="number" min="1" value="1"></label>
+      <button id="lyrFill" type="button">Put the lines on the bars</button>
+    </div>
+    <p id="lyrInfo" class="hint" aria-live="polite"></p>
+  </details>
+  <details id="bPaste">
+    <summary>Paste a song file instead</summary>
+    <p class="hint">The JSON of a song file: a title, a bpm and its bars, as the songs folder has them. It replaces what is in the builder.</p>
+    <label class="area">Song file <textarea id="bFile" rows="10" spellcheck="false"></textarea></label>
+    <button id="bLoad" type="button">Load into the builder</button>
+  </details>
+  <div class="row"><button id="bSave" class="main" type="button">Add song</button><button id="bCancel" class="ghost" type="button">Cancel</button></div>
+</section>
+
+<section id="sheet" class="screen" aria-labelledby="sheetTitle" hidden>
+  <button id="sheetBack" class="ghost back" type="button">Back to the song</button>
+  <h1 id="sheetTitle"></h1>
+  <p id="sheetMeta" class="meta"></p>
+  <div class="pills wide" role="group" aria-label="Show the song as"><button id="sheetBarsBtn" type="button">Bars</button><button id="sheetRawBtn" type="button">Raw data</button></div>
+  <p class="hint" id="sheetHint">Click a bar to play from there.</p>
+  <div id="sheetBars"></div>
+  <pre id="sheetRaw" class="raw" tabindex="0" aria-label="The song file" hidden></pre>
 </section>
 
 <section id="player" class="player" aria-label="Player" hidden>

@@ -21,6 +21,11 @@ const STATES = [
   { name: 'verdict', path: 'app/?song=2&play=1&at=7&verdict=Late%2040%20ms', size: [1280, 800] },
   { name: 'tuner', path: 'app/?song=2&play=1&at=7&tuner=1', size: [1280, 800] },
   { name: 'results', path: 'app/?song=2&done=1', size: [1280, 800] },
+  { name: 'builder', path: 'app/?song=1&edit=1', size: [1280, 800] },
+  { name: 'builder-new', path: 'app/?build=1', size: [1280, 800] },
+  { name: 'builder-errors', path: 'app/?paste=bad', size: [1280, 1400] },
+  { name: 'sheet', path: 'app/?song=2&sheet=1', size: [1280, 800] },
+  { name: 'sheet-raw', path: 'app/?song=2&sheet=raw', size: [1280, 800] },
 ];
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');

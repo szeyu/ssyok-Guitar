@@ -10,7 +10,7 @@ const words = s => s.trim().split(/\s+/);
 
 // The strum vocabulary, one character per eighth-note slot: D down, U up, > accented down, x chuck (a muted hit),
 // and REST, where the hand swings past without touching (REST is also a picked bar's rest).
-const HITS = 'DU>x', REST = '.';
+export const HITS = 'DU>x', REST = '.';
 
 /** The highest fret a capo can go on; 0 is no capo. */
 export const CAPO_MAX = 7;

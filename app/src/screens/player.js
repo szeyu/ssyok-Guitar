@@ -21,11 +21,11 @@ const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace 
 const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z', pause: 'M6 4h4.5v16H6zM13.5 4H18v16h-4.5z' };
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
-let song, source, step = null, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
+let song, source, step = null, picks, capo = 0, onBar = null, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
 let playerView = true, showHand = true, scenes;               // scenes: the 3D windows, made on first opening (null: no WebGL)
 // song: what plays, the source song or a strum step's stage made from it; step: the strum step playing, null = the whole song
 let drawn, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
-const resetDrawn = () => { drawn = { slot: -1, words: '', chord: '', next: '' }; };
+const resetDrawn = () => { drawn = { slot: -1, bar: -1, words: '', chord: '', next: '' }; };
 resetDrawn();
 // the run being judged, for the results card: the song playing (a stage while stepping), a verdict for each tap, and the song slots played (not counted in)
 let run;
@@ -100,6 +100,7 @@ function showChords({ chord, next }) {
 // the section timeline and the words follow the position; the DOM changes only when what they show does
 function showWhere(songAt) {
   const bar = Math.floor(songAt / per()), all = sections(song), j = all.findLastIndex(s => s.bar <= bar), sec = all[j];
+  if (!step && clock.playing && bar !== drawn.bar) { drawn.bar = bar; onBar?.(bar); }   // the bar the whole song has played to, remembered
   [...$('timeline').children].forEach((li, i) => {
     const b = li.firstChild;
     b.classList.toggle('past', i < j); b.classList.toggle('now', i === j);
@@ -156,7 +157,7 @@ async function setListening(on) {
 }
 
 // the song has played to its end: stop, go back to the start, and show how it went
-function finish() { togglePlay(); seek(0); openResults(); }
+function finish() { togglePlay(); seek(0); onBar?.(0); openResults(); }
 
 const openResults = () => showResults(run, {
   again: togglePlay,
@@ -221,10 +222,11 @@ export function setView({ player = playerView, hand = showHand } = {}) {
 }
 
 /** Opens the player for a song with your fingering picks and capo, at a strum step's stage (0 = the whole song), at a tempo
- *  (the song's, or STEP_BPM for a stage), at a bar (0 = the start), paused or playing. */
-export function openPlayer(s, { picks: p = {}, capo: c = 0, step: n = 0, tempo, bar = 0, play = false } = {}) {
+ *  (the song's, or STEP_BPM for a stage), at a bar (0 = the start), paused or playing. onBar(bar) hears each bar the whole song
+ *  plays into (not a strum step's), and 0 when it plays to its end. */
+export function openPlayer(s, { picks: p = {}, capo: c = 0, step: n = 0, tempo, bar = 0, play = false, onBar: heard = null } = {}) {
   if (clock.playing) togglePlay();
-  source = s; picks = p; capo = c;
+  source = s; picks = p; capo = c; onBar = heard;
   // the 3D loads on first opening, so nothing of it exists behind the library; without WebGL (or offline) the player goes on without it
   if (scenes === undefined) scenes = import('../views/scene/index.js').then(m => { scenes = m.createScenes([...document.querySelectorAll('#player .scene')], redraw); redraw(); }, () => { scenes = null; });
   $('playerSong').textContent = source.title;
