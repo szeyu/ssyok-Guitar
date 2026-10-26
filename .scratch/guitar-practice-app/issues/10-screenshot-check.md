@@ -6,6 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] One command writes the screenshots to a folder and prints their paths
-- [ ] It needs nothing beyond Chrome and Node
-- [ ] Each later ticket's states are added as they land
+- [x] One command writes the screenshots to a folder and prints their paths
+- [x] It needs nothing beyond Chrome and Node
+- [x] Each later ticket's states are added as they land
+
+## Comments
+
+Done in 9648964, review fixes in the next commit. Run `node tools/screenshots.js`; shots land in `shots/` (git-ignored). Later tickets fill in the skipped states.
