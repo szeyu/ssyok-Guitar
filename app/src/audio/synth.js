@@ -1,8 +1,9 @@
 // The guitar sound: a string model for strums, picked notes and riffs, a chuck, the click on the pulse, and the melody voice.
 // Everything is scheduled at an AudioContext time; nothing here knows about songs.
+import { STRINGS, noteHz } from '../engine/song.js';
 
-/** The open strings in standard tuning (E2 A2 D3 G3 B3 E4), thickest first. */
-export const OPEN_HZ = [82.41, 110, 146.83, 196, 246.94, 329.63];
+/** The open strings' pitches in Hz, thickest first. */
+export const OPEN_HZ = STRINGS.map(noteHz);
 /** The pitch of string s (0 = thickest) at a fret (where the note sounds: the capo already added). */
 export const stringHz = (s, fret) => OPEN_HZ[s] * 2 ** (fret / 12);
 

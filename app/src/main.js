@@ -12,7 +12,8 @@
 import { loadSongs } from './store.js';
 import { renderLibrary } from './screens/library.js';
 import { showSong, openPicker, setCapo, playSong } from './screens/song.js';
-import { toggleTools, toggleTuner, setView, showVerdict, demoResults } from './screens/player.js';
+import { toggleTools, setView, showVerdict, demoResults } from './screens/player.js';
+import { showFakeTuning } from './screens/tuner.js';
 import { showScreen } from './screens/shell.js';
 import { CAPO_MAX } from './engine/song.js';
 
@@ -31,6 +32,6 @@ if (library.songs[Q.get('song')]) {
     setView({ player: Q.get('view') !== 'audience', hand: Q.get('hand') !== '0' });
     if (Q.has('verdict')) showVerdict({ text: Q.get('verdict') || 'Good', tone: Q.get('tone') || (Q.get('verdict') ? 'off' : 'good') }, true);
     if (Q.has('done')) demoResults();
-    if (Q.has('tuner')) toggleTuner(true, [82.41, 110 * 2 ** (8 / 1200), 196 * 2 ** (-14 / 1200)]);
+    if (Q.has('tuner')) showFakeTuning([82.41, 110 * 2 ** (8 / 1200), 196 * 2 ** (-14 / 1200)]);
   }
 }

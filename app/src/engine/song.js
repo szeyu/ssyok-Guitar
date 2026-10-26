@@ -18,6 +18,9 @@ export const CAPO_MAX = 7;
 /** A guitarist's string number (6 = thickest … 1 = thinnest) as a string index (0 = thickest). Its own inverse. */
 export const stringIndex = number => 6 - number;
 
+/** The open strings in standard tuning, thickest first (their pitches: noteHz). */
+export const STRINGS = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'];
+
 /** Eighth-note slots in one bar of the song: 8 in 4/4, 6 in 3/4 and 6/8. */
 export const slotsPerBar = song => (song.beats === 3 ? 3 : 4) * 2;
 

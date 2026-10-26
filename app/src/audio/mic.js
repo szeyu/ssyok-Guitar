@@ -1,57 +1,67 @@
 // The microphone: strum onsets (a jump in loudness) and the pitch it hears, for Listen to me and the tuner. The mic is open
 // while either wants it, and closed (the browser's recording light off) when neither does.
 import { audioContext } from './clock.js';
-import { detectPitch } from './pitch.js';
+import { detectPitch, findOnset, rms, ONSET_WINDOW } from './pitch.js';
 
 /** Seconds from a strum to the app hearing it through the microphone. Fixed: calibrating it per device is out of scope.
  *  ponytail: a rough allowance (the prototype's 40 ms); add a calibration step if verdicts read late on real devices. */
 export const MIC_LATENCY = .04;
-const ONSET_RMS = .03, ONSET_JUMP = 2, ONSET_GAP = .12;   // an onset: louder than this, twice the running level, and 120 ms after the last
-const RECENT = 512;                                        // onsets look at the newest samples only, so they are not smeared over the window
+const ONSET_RMS = .03, ONSET_GAP = .12;   // an onset: louder than this, twice the level before, and 120 ms after the last
 
-const want = { onset: null, pitch: null };
-let opening, stream, analyser, buf, raf = 0, level = 0, last = 0;
+let onsetFn = null, pitchFn = null, asking = null, stream = null, analyser, buf, raf = 0, level = 0, lastOnset = -Infinity;
+const wanted = () => Boolean(onsetFn || pitchFn);
 
-/** Starts listening for kind ('onset': fn(ago) on each strum heard, ago in seconds; 'pitch': fn(hz or null) each frame),
- *  or with fn null stops it. Resolves false if the microphone is refused or missing, and that listener is dropped. */
-export async function listen(kind, fn) {
-  want[kind] = fn;
-  if (!want.onset && !want.pitch) { close(); return true; }
+/** Calls fn(ago) for each strum heard, ago the seconds since it was played; fn null stops. Resolves false if the
+ *  microphone is refused or missing (fn is then dropped). */
+export function onOnset(fn) { onsetFn = fn; return update(fn); }
+/** Calls fn(hz or null) with the pitch heard each frame; fn null stops. Resolves as onOnset. */
+export function onPitch(fn) { pitchFn = fn; return update(fn); }
+
+async function update(fn) {
+  if (!wanted()) { close(); return true; }
   if (!fn) return true;
   try {
-    await (opening ??= open());
+    await open();
     return true;
   } catch {
-    opening = null; want[kind] = null;
+    if (onsetFn === fn) onsetFn = null;
+    if (pitchFn === fn) pitchFn = null;
     return false;
   }
 }
 
+// one request at a time: turning it off and on while the browser asks waits for the same answer, and a stream that
+// arrives when nobody wants it any more is stopped at once, so there is never a second stream or loop
 async function open() {
+  if (stream) return;
+  asking ??= navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+    .finally(() => { asking = null; });
+  const got = await asking;
+  if (stream === got) return;                                    // another caller waiting on the same answer set it up
+  if (!wanted()) return got.getTracks().forEach(t => t.stop());  // turned off again while the browser was asking
   const ctx = audioContext();
-  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  await ctx.resume();
+  ctx.resume();
+  stream = got;
   analyser = ctx.createAnalyser(); analyser.fftSize = 4096; buf = new Float32Array(analyser.fftSize);
   ctx.createMediaStreamSource(stream).connect(analyser);
-  if (!want.onset && !want.pitch) return close();          // turned off again while the browser was asking
-  raf = requestAnimationFrame(hear);
+  raf = requestAnimationFrame(readFrame);
 }
 
 function close() {
   cancelAnimationFrame(raf); raf = 0;
   stream?.getTracks().forEach(t => t.stop());
-  opening = stream = analyser = null;
+  stream = analyser = null;
 }
 
-function hear() {
-  raf = requestAnimationFrame(hear);
+// each frame: the newest 4096 samples; a strum is timed by where it starts in them, not by when this frame saw it
+function readFrame() {
+  raf = requestAnimationFrame(readFrame);
   analyser.getFloatTimeDomainData(buf);
-  if (want.onset) {
-    let p = 0;
-    for (let i = buf.length - RECENT; i < buf.length; i++) p += buf[i] * buf[i];
-    const rms = Math.sqrt(p / RECENT), now = analyser.context.currentTime;
-    if (rms > ONSET_RMS && rms > level * ONSET_JUMP && now - last > ONSET_GAP) { last = now; want.onset(MIC_LATENCY); }
-    level += (rms - level) * .2;
+  const { currentTime, sampleRate } = audioContext();
+  if (onsetFn) {
+    const at = findOnset(buf, level, ONSET_RMS), age = (buf.length - at) / sampleRate;
+    if (at >= 0 && currentTime - age - lastOnset > ONSET_GAP) { lastOnset = currentTime - age; onsetFn(MIC_LATENCY + age); }
+    level = rms(buf, buf.length - ONSET_WINDOW);
   }
-  want.pitch?.(detectPitch(buf, analyser.context.sampleRate));
+  pitchFn?.(detectPitch(buf, sampleRate));
 }

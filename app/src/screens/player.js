@@ -7,14 +7,14 @@ import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, sl
 import { judge } from '../engine/judge.js';
 import { handAt, playedAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
-import { createSynth, OPEN_HZ } from '../audio/synth.js';
-import { listen } from '../audio/mic.js';
-import { nearestString } from '../audio/pitch.js';
+import { createSynth } from '../audio/synth.js';
+import { onOnset } from '../audio/mic.js';
 import { drawLane, positionAt, hitLineY } from '../views/lane.js';
 import { chordBox } from '../views/chordbox.js';
 import { el } from '../views/dom.js';
 import { showScreen, onScreen, screenShowing } from './shell.js';
 import { showResults, closeResults, resultsShowing, demoRun } from './results.js';
+import { toggleTuner } from './tuner.js';
 
 const $ = id => document.getElementById(id);
 const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace of when each slot is scheduled and when it is drawn
@@ -143,43 +143,16 @@ function tap(dir, ago) {
   run.verdicts.push(v); showVerdict(v);
 }
 
-// ---- the microphone: Listen to me sends each strum it hears through tap, as the arrow keys do; the tuner ----
+// ---- the microphone: Listen to me sends each strum it hears through tap, as the arrow keys do (the tuner: tuner.js) ----
 const BLOCKED = "The microphone is blocked, so the app can't hear you. You can still tap the arrow keys.";
-const STRINGS = ['E', 'A', 'D', 'G', 'B', 'e'], IN_TUNE = 5, NEEDLE_CENTS = 50, FAR = 250;   // within ±5 cents is in tune; the needle spans ±50; strings are at most 500 cents apart
 let listening = false;
 const micNote = text => { $('micNote').textContent = text; $('micNote').hidden = !text; };
 
 async function setListening(on) {
   toggle('listen', listening = on);
-  if (!on) { listen('onset', null); micNote(''); return; }
+  if (!on) { onOnset(null); micNote(''); return; }
   micNote('Listening. Use headphones, so the microphone hears your guitar and not the app.');
-  if (!await listen('onset', ago => { if (clock.playing) tap(null, ago); })) { toggle('listen', listening = false); micNote(BLOCKED); }
-}
-
-/** Opens or closes the tuner (no argument: the other way). It listens until closed; with fake readings (Hz, for ?tuner)
- *  it shows those instead and leaves the microphone alone. */
-export async function toggleTuner(open = $('tuner').hidden, fake) {
-  $('tuner').hidden = !open; toggle('tunerBtn', open);
-  if (!open) return void listen('pitch', null);              // the mic stays open if Listen to me is on
-  $('tunerSay').textContent = 'Play one open string and let it ring.';
-  $('tunerStrings').replaceChildren(...STRINGS.map((name, s) => el('li', { ariaLabel: `${name} string` },
-    el('b', { textContent: name }), el('span', { className: 'meter' }, el('i')), el('span', { className: 'off', textContent: '–' }))));
-  if (fake) return fake.forEach(showTuning);
-  if (!await listen('pitch', showTuning)) { $('tuner').hidden = true; toggle('tunerBtn', false); micNote(BLOCKED); }
-}
-
-// a reading: the string it is nearest gets the needle and is lit; the other strings keep their last reading
-function showTuning(hz) {
-  if (!hz) return;                                            // quiet: the last reading stays
-  const { s, cents } = nearestString(hz, OPEN_HZ), c = Math.round(cents), ok = Math.abs(c) <= IN_TUNE;
-  if (Math.abs(c) > FAR) return;                              // above the thinnest or below the thickest string: not an open string
-  [...$('tunerStrings').children].forEach((li, i) => { li.classList.toggle('now', i === s); li.ariaCurrent = i === s ? 'true' : null; });
-  const li = $('tunerStrings').children[s];
-  li.style.setProperty('--c', Math.max(-NEEDLE_CENTS, Math.min(NEEDLE_CENTS, c)) / NEEDLE_CENTS);
-  li.classList.toggle('ok', ok);
-  li.lastChild.textContent = c > 0 ? `+${c}` : String(c);
-  const say = `${STRINGS[s]} string: ${ok ? 'in tune' : c < 0 ? `${-c} cents low, tighten it` : `${c} cents high, loosen it`}`;
-  if ($('tunerSay').textContent !== say) $('tunerSay').textContent = say;
+  if (!await onOnset(ago => { if (clock.playing) tap(null, ago); })) { toggle('listen', listening = false); micNote(BLOCKED); }
 }
 
 // the song has played to its end: stop, go back to the start, and show how it went
@@ -302,8 +275,6 @@ $('ramp').onclick = () => toggle('ramp', ramp = !ramp);
 $('playerView').onclick = () => setView({ player: !playerView });
 $('showHand').onclick = () => setView({ hand: !showHand });
 $('listen').onclick = () => setListening(!listening);
-$('tunerBtn').onclick = () => toggleTuner();
-$('tunerClose').onclick = () => toggleTuner(false);
 $('playerHome').onclick = () => showScreen('library');
 $('playerSong').onclick = () => showScreen('song');
 $('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer

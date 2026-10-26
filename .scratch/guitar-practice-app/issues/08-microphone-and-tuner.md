@@ -4,8 +4,12 @@
 
 **Blocked by:** 07 (Judging and results card)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tests: pitch detection reads a 110 Hz and a 329.6 Hz sine within tolerance; the string model plays in tune
-- [ ] A refused microphone shows a plain message and the app keeps working
-- [ ] Mic verdicts and key verdicts come from the same judging code
+- [x] Tests: pitch detection reads a 110 Hz and a 329.6 Hz sine within tolerance; the string model plays in tune
+- [x] A refused microphone shows a plain message and the app keeps working
+- [x] Mic verdicts and key verdicts come from the same judging code
+
+## Comments
+
+Done in 9fee0f2, with review fixes after. The string model was up to 13 cents sharp (the playback rate assumed a period of N + .5 samples; it is N - .5) and is now in tune. Pitch tolerance in the tests is ±5 cents. MIC_LATENCY is a fixed 40 ms (calibration is out of scope). A strum's onset time includes the sample's age in the microphone buffer, so it does not depend on when the frame noticed it. The tuner ignores readings more than 250 cents from every string.

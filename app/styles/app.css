@@ -167,12 +167,12 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .tuner .off { font-size: 13px; text-align: right }
 .tuner .meter { position: relative; height: 10px; border-radius: 5px; background: var(--raise); box-shadow: inset 0 0 0 1px var(--line) }
 .tuner .meter::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--line) }
-.tuner .meter i { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; border-radius: 2px; left: calc(50% + var(--c, 0) * 50%); background: var(--dim); transition: left .15s var(--ease-snap) }
+.tuner .meter i { position: absolute; inset: -4px 0; transform: translateX(calc(var(--c, 0) * 50%)); transition: transform .15s var(--ease-snap) }   /* the meter's width, slid; the needle is its middle */
+.tuner .meter i::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; margin-left: -2px; border-radius: 2px; background: currentColor }
 .tuner li:not([style]) .meter i { display: none }
 .tuner li.now { color: var(--ink) }
-.tuner li.now .meter i { background: var(--ink) }
 .tuner li.ok .off { color: var(--good) }
-.tuner li.now.ok .meter i { background: var(--good) }
+.tuner li.now.ok .meter i { color: var(--good) }
 
 .stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; min-height: 0; padding: 16px 16px 12px }
 .views { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0 }
