@@ -72,13 +72,13 @@ export function createScenes(elements, ready) {
   }
 
   return {
-    /** Draws both windows. state: { pos, at, hand: { cur, nxt, move }, capo, frame, playing, lit, still, playerView, showHand } (see the
-     *  player); frame: the fret the fretting camera heads for (cameraTarget). Returns true while that camera is still moving, so
+    /** Draws both windows. state: { pos, at, hand: { cur, nxt, move }, capo, camFret, playing, lit, still, playerView, showHand } (see the
+     *  player); camFret: the fret the fretting camera heads for (cameraFretAt). Returns true while that camera is still moving, so
      *  a paused player draws on until it arrives. */
     draw(state) {
       const t0 = performance.now();
       govern(t0, state.playing);
-      const moving = follow(fretX(state.frame) - L, t0, state.still);
+      const moving = follow(fretX(state.camFret) - L, t0, state.still);
       capoBar.visible = state.capo > 0;
       if (state.capo) capoBar.position.x = dotX(state.capo);
       const { pos, at, capo, lit, still, playerView } = state;

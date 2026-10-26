@@ -35,19 +35,31 @@ export function handAt(song, loop, pos, rate) {
   return { chord, next, sounds, lands, move: Math.min(1, Math.max(0, (pos - (lands - travel)) / travel)) };
 }
 
-/** The frets bar n uses, counted from the capo: { lo, hi } over every chord shape in the bar (with your picks) and its riff
- *  notes; open strings do not count. { lo: 0, hi: 0 } when nothing is fretted. */
-export function fretSpan(song, n, picks) {
+/** The highest fret bar n uses, counted from the capo, over every chord shape in the bar (with your picks) and its riff notes;
+ *  0 when nothing is fretted. */
+export function topFret(song, n, picks) {
   const per = slotsPerBar(song);
-  const frets = [...barChords(song.bars[n]).flatMap(c => voicing(song, c, picks).frets),
-    ...Array.from({ length: per }, (_, i) => riffMarks(song, n * per + i).map(r => r.fret)).flat()].filter(f => f > 0);
-  return frets.length ? { lo: Math.min(...frets), hi: Math.max(...frets) } : { lo: 0, hi: 0 };
+  return Math.max(0, ...barChords(song.bars[n]).flatMap(c => voicing(song, c, picks).frets),
+    ...Array.from({ length: per }, (_, i) => riffMarks(song, n * per + i).map(r => r.fret)).flat());
 }
 
-// ponytail: the frame is taken as FRAME cm of neck (the fretting window at 1280x800 shows about 20); a narrow window shows
-// less, so a high note can sit at its edge there. Measure the window's real width if that matters.
-const SCALE = 65, FRAME = 16, fretX = f => SCALE * 2 ** (-f / 12), fretOf = x => 12 * Math.log2(SCALE / x);
+/** The guitar's scale length (cm), bridge to nut, and the distance from the bridge to fret n (0 = the nut). */
+export const L = 65, fretX = n => L * 2 ** (-n / 12);
+const fretOf = x => 12 * Math.log2(L / x);
 
-/** Where the fretting camera frames a fret span (as fretSpan gives it) with a capo: the fret (fractional) it puts where the
- *  nut sits in the open framing. The capo when the span fits there; else just far enough up the neck to show its highest fret. */
-export const cameraTarget = ({ hi }, capo) => Math.max(capo, fretOf(fretX(hi + capo) + FRAME));
+// ponytail: the frame is taken as FRAME cm of neck from where the nut sits in the open framing (the fretting window at
+// 1280x800 shows about 20, the floating chord box covers the right third); a narrow window shows less, so a high note can sit
+// near the box there. Measure the window's real width if that matters.
+export const FRAME = 13;
+
+/** Where the fretting camera frames a bar's highest fret (topFret) with a capo: the fret (fractional) it puts where the nut
+ *  sits in the open framing. The capo when that fret fits there; else just far enough up the neck to show it. */
+export const cameraTarget = (hi, capo) => Math.max(capo, fretOf(fretX(hi + capo) + FRAME));
+
+const CAMERA_LEAD = .5;   // seconds: the camera heads for the next bar this early, so it is there when the hand is
+
+/** The fret the fretting camera heads for at a position (as handAt takes it): it frames the bar CAMERA_LEAD seconds ahead. */
+export function cameraFretAt(song, loop, pos, rate, picks, capo) {
+  const bar = Math.floor(songSlot(song, loop, Math.floor(pos + CAMERA_LEAD * rate)) / slotsPerBar(song));
+  return cameraTarget(topFret(song, bar, picks), capo);
+}

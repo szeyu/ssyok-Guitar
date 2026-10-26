@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { soundingName, strumSummary, slowBpm, slower, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn, strumSteps, stepAt, stepSong, STEP_BARS } from '../app/src/engine/practice.js';
-import { handAt, playedAt } from '../app/src/engine/hand.js';
+import { handAt, playedAt, topFret, cameraTarget, cameraFretAt, fretX, FRAME } from '../app/src/engine/hand.js';
 import { slotAt, sections, lyricLines, validateSong, slotsPerBar, meterOf } from '../app/src/engine/song.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
@@ -240,30 +240,40 @@ test('making a stage leaves the song as it was, so leaving the steps plays the w
   assert.deepEqual(song, before);
 });
 
-// ---- the fretting camera: the frets a bar uses, and where the camera frames them ----
-test('an open-chord bar keeps the camera at the nut, or at the capo', async () => {
-  const { fretSpan, cameraTarget } = await import('../app/src/engine/hand.js');
+// ---- the fretting camera: the highest fret a bar uses, and where the camera frames it ----
+const inFrame = (fret, target, capo) => fretX(target) - fretX(fret + capo) <= FRAME + 1e-9;   // within FRAME cm of the framing's nut
+
+test('an open-chord bar keeps the camera at the nut, or at the capo', () => {
   const song = { bpm: 90, beats: 4, bars: [{ chord: 'C', strum: 'D.DU.UDU' }] };
-  const span = fretSpan(song, 0, {});
-  assert.deepEqual(span, { lo: 1, hi: 3 });
-  assert.equal(cameraTarget(span, 0), 0);
-  assert.equal(cameraTarget(span, 3), 3);
-  assert.equal(cameraTarget({ lo: 0, hi: 0 }, 0), 0);                     // nothing fretted
+  assert.equal(topFret(song, 0, {}), 3);
+  assert.equal(cameraTarget(3, 0), 0);
+  assert.equal(cameraTarget(3, 3), 3);
+  assert.equal(cameraTarget(0, 0), 0);                                       // nothing fretted
 });
 
-test('a bar high up the neck spans its chord shape and its riff notes, and the camera moves to show them', async () => {
-  const { fretSpan, cameraTarget } = await import('../app/src/engine/hand.js');
+test('a bar high up the neck counts its chord shape and its riff notes, and the camera moves up to show them', () => {
   const song = { bpm: 90, beats: 3, chords: { 'D(10)': [{ frets: [10, -1, -1, 11, 10, -1], fingers: [1, 0, 0, 2, 1, 0] }] },
     bars: [{ chord: 'D(10)', pluck: '1:9+6:10 . 3:11 1:15 1:12 2:0' }] };     // riff notes at 9 and 15, an open string ignored
-  const span = fretSpan(song, 0, {});
-  assert.deepEqual(span, { lo: 9, hi: 15 });
-  const from = cameraTarget(span, 0);
-  assert.ok(from > 6.9 && from < 7.1, `frame starts near fret 7 (got ${from})`);   // fret 15 is 27.3 cm from the bridge, plus 16 cm of frame: fret 7.03
-  assert.ok(cameraTarget(span, 2) > from);                                  // a capo moves it further up
+  assert.equal(topFret(song, 0, {}), 15);
+  for (const capo of [0, 2]) {
+    const target = cameraTarget(15, capo);
+    assert.ok(target > capo, 'the camera leaves the capo');
+    assert.ok(inFrame(15, target, capo), 'fret 15 is in frame');
+    assert.ok(target < 9 + capo, 'the lowest note, fret 9, is in frame too');
+  }
+  assert.ok(cameraTarget(15, 2) > cameraTarget(15, 0));                     // a capo moves it further up
 });
 
-test('a bar of several chords spans every chord in it', async () => {
-  const { fretSpan } = await import('../app/src/engine/hand.js');
+test('a bar of several chords counts every chord in it', () => {
   const song = { bpm: 90, beats: 4, chords: { Hi: [{ frets: [-1, 7, 9, 9, 8, 7], fingers: [0, 1, 3, 4, 2, 1] }] }, bars: [{ chord: 'G Hi', strum: 'D.DU.UDU' }] };
-  assert.deepEqual(fretSpan(song, 0, {}), { lo: 2, hi: 9 });
+  assert.equal(topFret(song, 0, {}), 9);
+});
+
+test('the camera heads for the next bar half a second before it starts', () => {
+  const song = { bpm: 60, beats: 4, chords: { Hi: [{ frets: [-1, 12, 14, 14, 13, 12], fingers: [0, 1, 3, 4, 2, 1] }] },
+    bars: [{ chord: 'C', strum: 'D.DU.UDU' }, { chord: 'Hi', strum: 'D.DU.UDU' }] };
+  const loop = loopRange(song, 'song', 0), rate = 2;                          // 2 slots a second: half a second is one slot
+  assert.equal(cameraFretAt(song, loop, 6.5, rate, {}, 0), 0);               // bar 2 still more than half a second away
+  assert.equal(cameraFretAt(song, loop, 7, rate, {}, 0), cameraTarget(14, 0));
+  assert.equal(cameraFretAt(song, loop, 15, rate, {}, 0), 0);                // round the loop, back to the open bar
 });

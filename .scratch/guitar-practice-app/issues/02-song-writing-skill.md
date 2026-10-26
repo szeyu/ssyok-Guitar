@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (App skeleton and library screen)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The skill has a description that triggers on adding, converting or fixing a song
 - [x] The format reference matches what the engine validates today: strum, pluck with string:fret and +, mixed bars, multi-chord bars, the chords block, sections, lyrics, syllables, tune, compound 6/8

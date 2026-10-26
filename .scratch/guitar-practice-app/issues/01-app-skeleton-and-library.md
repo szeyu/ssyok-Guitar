@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] The app opens from a plain static server with no build step and shows the library in the Hum look
 - [x] The song engine has no DOM, audio or 3D imports

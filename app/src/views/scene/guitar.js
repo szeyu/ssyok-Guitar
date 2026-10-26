@@ -1,10 +1,9 @@
 // The 3D guitar, in centimetres: bridge at x = 0, nut at x = L, the fretboard faces +y, the thickest string at -z.
 // Colours come in as tokens (C), so nothing here names one.
 import * as THREE from 'three';
+import { L, fretX } from '../../engine/hand.js';
 
-export const L = 65;
-/** Distance from the bridge to fret n (0 = the nut). */
-export const fretX = n => L * 2 ** (-n / 12);
+export { L, fretX };
 /** Where string s (0 = thickest) crosses x: the strings fan out towards the bridge. */
 export const stringZ = (s, x) => (s / 5 - .5) * (5.4 - 1.8 * x / L);
 /** Where a fingertip presses fret f: a little behind the fret wire. */

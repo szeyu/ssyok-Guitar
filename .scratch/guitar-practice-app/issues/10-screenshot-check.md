@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (App skeleton and library screen)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] One command writes the screenshots to a folder and prints their paths
 - [x] It needs nothing beyond Chrome and Node
