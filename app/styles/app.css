@@ -132,6 +132,14 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .timeline button.past { color: var(--mute); background: var(--mint-wash) }
 .timeline button.now { background: var(--ink); color: var(--bg); font-weight: 600 }
 .timeline button.now::after { content: ''; position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--brass); border-radius: 0 4px 4px 0; transform-origin: left; scale: var(--through, 0) 1 }
+/* the strum steps take the timeline's place: back, "Step 2 of 5" and its name, on, and the way out */
+.timeline[hidden], .steps[hidden] { display: none }
+.steps { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0 }
+.steps p { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--ink-2) }
+.steps p b { margin-right: 8px; font: 600 17px var(--serif); letter-spacing: -.02em; color: var(--ink) }
+.steps .iconBtn { width: 36px; height: 36px }
+.steps button:disabled { opacity: .4; cursor: default; translate: none; --edge: 1px }
+#stepsBtn[aria-pressed=true] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
 #toolsBtn[aria-expanded=true] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
 
 .tools { position: absolute; top: 62px; right: 16px; z-index: 5; width: 300px; padding: 12px; display: grid; gap: 4px; background: var(--grain), var(--panel); border-radius: 20px; box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card), 0 24px 50px -20px var(--shade-3) }
@@ -192,7 +200,7 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
 @media (max-width: 900px) {
   .player { grid-template-rows: 56px minmax(0, 1fr) auto }
   .pbar { gap: 12px; padding-inline: 12px }
-  .timeline, .keys, .ctl .hint { display: none }
+  .timeline, .keys, .ctl .hint, .steps span, #stepsDone { display: none }
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.5fr) }
   .transport { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px }
   .float { scale: .7; transform-origin: top right }

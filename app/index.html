@@ -42,7 +42,7 @@
       <h2>The strum</h2>
       <div id="strums" class="strums"></div>
       <h2>Start</h2>
-      <!-- ponytail: Learn the strum and the links lead to screens later tickets build (strum steps 06, whole-song sheet and builder 09); no-ops until then -->
+      <!-- ponytail: the links lead to screens a later ticket builds (whole-song sheet and builder 09); no-ops until then -->
       <div class="ways">
         <button id="goSteps" type="button"><i>1</i><b>Learn the strum</b><span>Step by step, slowly, over the first chords</span></button>
         <button id="goSlow" type="button"><i>2</i><b>Play it slowly</b><span id="slowNote"></span></button>
@@ -58,6 +58,12 @@
     <button id="playerHome" class="ghost" type="button">Songs</button>
     <button id="playerSong" class="ptitle" type="button" title="Chords and capo for this song"></button>
     <ol id="timeline" class="timeline" aria-label="Sections, click one to jump to it"></ol>
+    <div id="steps" class="steps" role="group" aria-label="Strum steps" hidden>
+      <button id="stepPrev" class="iconBtn" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4 7 12l8.5 8 1.8-1.9L10.8 12l6.5-6.1z"/></svg></button>
+      <p aria-live="polite"><b id="stepOf"></b> <span id="stepName"></span></p>
+      <button id="stepNext" class="iconBtn" type="button" aria-label="Next step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4 17 12l-8.5 8-1.8-1.9 6.5-6.1-6.5-6.1z"/></svg></button>
+      <button id="stepsDone" class="ghost" type="button">Back to the whole song</button>
+    </div>
     <button id="toolsBtn" type="button" aria-expanded="false" aria-controls="tools">Tools</button>
   </header>
   <div id="tools" class="tools" role="group" aria-label="Tools" hidden>
@@ -81,6 +87,7 @@
     <button id="play" class="playBtn" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></button>
     <label class="ctl">Tempo <input id="tempo" type="range" step="1"> <output id="bpm" class="bpm" for="tempo"></output><small id="pulse" class="hint" hidden>dotted-quarter beats</small></label>
     <div class="ctl" role="group" aria-label="Loop">Loop <div id="loop" class="pills wide"></div></div>
+    <button id="stepsBtn" type="button" aria-pressed="false" title="Learn this song's strum one step at a time">Strum steps</button>
     <p class="keys"><kbd>Space</kbd> play</p>
   </footer>
 </section>

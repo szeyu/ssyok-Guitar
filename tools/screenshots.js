@@ -17,6 +17,7 @@ const STATES = [
   { name: 'player-mid-song', path: 'app/?song=2&play=1&at=7', size: [1280, 800] },
   { name: 'player-audience', path: 'app/?song=2&play=1&at=7&view=audience', size: [1280, 800] },
   { name: 'tools', path: 'app/?song=2&play=1&at=7&tools=1', size: [1280, 800] },
+  { name: 'drill', path: 'app/?song=2&drill=2', size: [1280, 800] },
   { name: 'results', path: null, size: [1280, 800], skip: 'ticket 07 adds its URL' },
 ];
 

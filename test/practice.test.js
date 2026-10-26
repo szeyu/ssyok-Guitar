@@ -179,3 +179,47 @@ test('what the hands play at a slot: the stroke, its count, the fingering\'s fre
   assert.deepEqual([played.count, played.frets, played.riff], ['&', [-1, 3, 2, 0, 1, 0], [{ string: 4, fret: 3 }]]);
   assert.deepEqual(played.stroke, slotAt(song, 1).stroke);
 });
+
+// ---- strum steps ----
+import { strumSteps, stepSong, STEP_BPM } from '../app/src/engine/practice.js';
+import { validateSong } from '../app/src/engine/song.js';
+
+const METERS = { '4/4': {}, '3/4': { beats: 3 }, '6/8': { beats: 3, compound: true } };
+const sixBars = meter => ({ title: 'Six', bpm: 96, capo: 2, ...METERS[meter], bars: ['G', 'C D', 'Em', 'G', 'C', 'D'].map((chord, n) => ({ chord, ...(n === 1 ? { pluck: meter === '4/4' ? '4 3 2 1 4 3 2 1' : '4 3 2 1 4 3' } : { strum: meter === '4/4' ? 'D.DU.UDU' : 'D.DUDU' }), lyric: 'la', section: n ? undefined : 'Verse' })) });
+
+test('every step in every meter is a valid strum for that meter', () => {
+  for (const meter of Object.keys(METERS)) {
+    const song = sixBars(meter), all = strumSteps(song);
+    assert.ok(all.length >= 4, meter);
+    all.forEach((step, i) => {
+      assert.ok(step.name && step.say, `${meter} step ${i + 1} is named and explained`);
+      assert.deepEqual(validateSong({ ...song, bars: [{ chord: 'G', strum: step.strum }] }), [], `${meter} step ${i + 1}: ${step.strum}`);
+    });
+  }
+});
+
+test('the step sets follow the meter', () => {
+  assert.equal(strumSteps(sixBars('4/4'))[0].strum, 'D.D.D.D.');
+  assert.equal(strumSteps(sixBars('3/4'))[0].strum, 'D.D.D.');
+  assert.equal(strumSteps(sixBars('6/8'))[0].strum, 'D..D..');   // down on the pulse, 1 and 4
+});
+
+test('stage N plays its step over the first four bars, with their chords', () => {
+  const song = sixBars('4/4'), stage = stepSong(song, 3);
+  assert.deepEqual(stage.bars.map(b => b.chord), ['G', 'C D', 'Em', 'G']);
+  assert.ok(stage.bars.every(b => b.strum === strumSteps(song)[2].strum && !b.pluck && !b.lyric));
+  assert.equal(slotAt(stage, 8 + 4).chord, 'D');                  // a two-chord bar keeps both chords
+  assert.deepEqual(validateSong(stage), []);
+  assert.equal(stepSong({ ...song, bars: song.bars.slice(0, 2) }, 1).bars.length, 2);   // a shorter song: all its bars
+});
+
+test('a stage plays at 60 bpm in the song\'s unit, the dotted quarter in 6/8', () => {
+  assert.equal(STEP_BPM, 60);
+  for (const meter of Object.keys(METERS)) assert.equal(stepSong(sixBars(meter), 1).bpm, 60);
+});
+
+test('making a stage leaves the song as it was, so leaving the steps plays the whole song again', () => {
+  const song = sixBars('6/8'), before = structuredClone(song);
+  for (let n = 1; n <= strumSteps(song).length; n++) stepSong(song, n);
+  assert.deepEqual(song, before);
+});

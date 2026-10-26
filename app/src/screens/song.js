@@ -26,6 +26,7 @@ export function showSong(s) {
   $('playNote').textContent = `Full speed, ${song.bpm} bpm`;
   $('suggest').textContent = SUGGEST;
   $('suggest').onclick = () => { Object.assign(picks, easiestFingerings(song)); renderChords(); $('suggest').textContent = 'Using the fingerings that move least'; };
+  $('goSteps').onclick = () => playSong({ step: 1 });
   $('goSlow').onclick = () => playSong({ tempo: slowBpm(song), play: true });
   $('goPlay').onclick = () => playSong({ tempo: song.bpm, play: true });
   renderChords(); renderCapo(); renderStrums();

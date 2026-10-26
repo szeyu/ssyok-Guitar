@@ -59,3 +59,37 @@ export function songSlot(song, loop, slot) {
 
 /** The one-bar count-in: how many pulses, and how many slots each lasts (a quarter is 2 slots, a 6/8 dotted quarter 3). */
 export const countIn = song => song.compound ? { pulses: 2, slots: 3 } : { pulses: song.beats === 3 ? 3 : 4, slots: 2 };
+
+// The strum steps: a beginner path from "down on the beat" to a full pattern, one set per meter, played over the song's first bars.
+const STEPS = {
+  4: [
+    { name: 'Down on every beat', strum: 'D.D.D.D.', say: 'Count 1 2 3 4. Hit down on each number. Let the hand come back up without touching the strings.' },
+    { name: 'Down and up, all eight', strum: 'DUDUDUDU', say: 'Count 1 & 2 & 3 & 4 &. Down on the numbers, up on the "&". The hand never stops.' },
+    { name: 'Miss one up', strum: 'D.DUDUDU', say: 'Same swing, but miss the strings on the first "&". Keep the hand moving through the miss.' },
+    { name: 'The full pattern', strum: 'D.DU.UDU', say: 'Now also miss the down on 3. The hand still swings down there, it just does not touch.' },
+    { name: 'Add the chuck', strum: 'D.xU.UxU', say: 'On 2 and 4 the side of the hand lands on the strings, so you hear a click, not a chord.' },
+  ],
+  3: [
+    { name: 'Down on every beat', strum: 'D.D.D.', say: 'Count 1 2 3, like a waltz. Hit down on each number.' },
+    { name: 'Down and up, all six', strum: 'DUDUDU', say: 'Count 1 & 2 & 3 &. Down on the numbers, up on the "&". The hand never stops.' },
+    { name: 'The waltz strum', strum: 'D.DUDU', say: 'Miss the strings on the first "&". The hand keeps swinging through the miss.' },
+    { name: 'Lean on the one', strum: '>.DUDU', say: 'Hit the 1 harder than the rest. That is what makes it feel like three.' },
+  ],
+  6: [
+    { name: 'Down on the pulse', strum: 'D..D..', say: 'Count 1 2 3 4 5 6. Hit down on 1 and 4 only: that is the slow pulse of the song.' },
+    { name: 'Down on all six', strum: 'DDDDDD', say: 'Six even down strokes. Keep them small and relaxed.' },
+    { name: 'Lean on 1 and 4', strum: '>DD>DD', say: 'Same six downs, but hit 1 and 4 harder. This is the classic 6/8 strum.' },
+    { name: 'Add the ups', strum: '>DU>DU', say: 'Up strokes on 3 and 6 make it flow: down, down, up, twice.' },
+  ],
+};
+
+/** The song's strum steps, in order: { name, strum, say } for its meter (4/4, 3/4 or 6/8). */
+export const strumSteps = song => STEPS[song.compound ? 6 : song.beats === 3 ? 3 : 4];
+
+/** A stage's tempo in the song's unit: 60 quarters a minute, and in 6/8 60 dotted quarters (the pulse the song's bpm counts). */
+export const STEP_BPM = 60;
+
+/** Stage n (1 = the first) as a song of its own: the song's first four bars, their chords kept, every bar strummed with the
+ *  step, at STEP_BPM. The song itself is left as it was. */
+export const stepSong = (song, n) => ({ ...song, bpm: STEP_BPM,
+  bars: song.bars.slice(0, 4).map(bar => ({ chord: bar.chord, strum: strumSteps(song)[n - 1].strum })) });

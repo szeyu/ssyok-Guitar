@@ -4,6 +4,7 @@
 //   &play=1        the player, paused             &at=<bar>     at that bar (1 = the first)
 //   &tools=1       with the Tools menu open       &bpm=<n>      at that tempo  &go=1         playing (needs autoplay allowed)
 //   &view=audience the 3D seen as the audience sees it   &hand=0  without the 3D hand   &perf  3D frame times and resolution scale
+//   &drill=<n>     the player at strum step n (play=1 not needed)
 //   &log           a trace of scheduled and drawn slot times in the console (run it with node tools/trace.js <url>)
 import { loadSongs } from './store.js';
 import { renderLibrary } from './screens/library.js';
@@ -18,12 +19,11 @@ renderLibrary(library, openSong);
 
 const Q = new URLSearchParams(location.search);
 if (library.songs[Q.get('song')]) {
-  const song = library.songs[+Q.get('song')];
   openSong(+Q.get('song'));
   if (Q.has('capo')) setCapo(Math.min(CAPO_MAX, Math.max(0, Math.round(+Q.get('capo')) || 0)));
   if (Q.has('pick')) openPicker(Q.get('pick'));
-  if (Q.has('play')) {
-    playSong({ tempo: +Q.get('bpm') || song.bpm, bar: (Math.round(+Q.get('at')) || 1) - 1, play: Q.has('go') });
+  if (Q.has('play') || Q.has('drill')) {
+    playSong({ step: Math.round(+Q.get('drill')) || 0, tempo: +Q.get('bpm') || undefined, bar: (Math.round(+Q.get('at')) || 1) - 1, play: Q.has('go') });
     if (Q.has('tools')) toggleTools(true);
     setView({ player: Q.get('view') !== 'audience', hand: Q.get('hand') !== '0' });
   }
