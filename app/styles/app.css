@@ -132,13 +132,16 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .timeline button.past { color: var(--mute); background: var(--mint-wash) }
 .timeline button.now { background: var(--ink); color: var(--bg); font-weight: 600 }
 .timeline button.now::after { content: ''; position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--brass); border-radius: 0 4px 4px 0; transform-origin: left; scale: var(--through, 0) 1 }
-/* the strum steps take the timeline's place: back, "Step 2 of 5" and its name, on, and the way out */
+/* the strum steps take the timeline's place: back, a numbered dot per step to jump to (the current one dark), its name, on, and the way out */
 .timeline[hidden], .steps[hidden] { display: none }
 .steps { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0 }
 .steps p { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--ink-2) }
-.steps p b { margin-right: 8px; font: 600 17px var(--serif); letter-spacing: -.02em; color: var(--ink) }
+.steps p b { font: 600 17px var(--serif); letter-spacing: -.02em; color: var(--ink) }
+.steps .dots { display: flex; gap: 5px }
+.steps .dots button { width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 12px; font-variant-numeric: tabular-nums }
+.steps .dots button[aria-current=step] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
 .steps .iconBtn { width: 36px; height: 36px }
-.steps button:disabled { opacity: .4; cursor: default; translate: none; --edge: 1px }
+.steps button:disabled, .pills button:disabled { opacity: .4; cursor: default; translate: none; --edge: 1px }
 #stepsBtn[aria-pressed=true] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
 #toolsBtn[aria-expanded=true] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
 
@@ -200,7 +203,7 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
 @media (max-width: 900px) {
   .player { grid-template-rows: 56px minmax(0, 1fr) auto }
   .pbar { gap: 12px; padding-inline: 12px }
-  .timeline, .keys, .ctl .hint, .steps span, #stepsDone { display: none }
+  .timeline, .keys, .ctl .hint, .steps p, #stepsDone { display: none }
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.5fr) }
   .transport { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px }
   .float { scale: .7; transform-origin: top right }

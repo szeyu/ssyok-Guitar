@@ -60,8 +60,9 @@
     <ol id="timeline" class="timeline" aria-label="Sections, click one to jump to it"></ol>
     <div id="steps" class="steps" role="group" aria-label="Strum steps" hidden>
       <button id="stepPrev" class="iconBtn" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4 7 12l8.5 8 1.8-1.9L10.8 12l6.5-6.1z"/></svg></button>
-      <p aria-live="polite"><b id="stepOf"></b> <span id="stepName"></span></p>
-      <button id="stepNext" class="iconBtn" type="button" aria-label="Next step"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4 17 12l-8.5 8-1.8-1.9 6.5-6.1-6.5-6.1z"/></svg></button>
+      <span id="stepDots" class="dots"></span>
+      <p aria-live="polite"><b id="stepName"></b></p>
+      <button id="stepNext" class="ghost" type="button"></button>
       <button id="stepsDone" class="ghost" type="button">Back to the whole song</button>
     </div>
     <button id="toolsBtn" type="button" aria-expanded="false" aria-controls="tools">Tools</button>

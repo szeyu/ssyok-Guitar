@@ -1,5 +1,5 @@
 // Practice settings applied to a song: the capo, tempo choices, loops, the count-in and the strum summary. Pure: no DOM, audio, 3D or shared state.
-import { NOTES, ALIAS, strumPatterns, slotsPerBar, stretchSlots } from './song.js';
+import { NOTES, ALIAS, strumPatterns, slotsPerBar, stretchSlots, meterOf } from './song.js';
 import { chordsUsed, barChords } from './chords.js';
 
 const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
@@ -58,7 +58,7 @@ export function songSlot(song, loop, slot) {
 }
 
 /** The one-bar count-in: how many pulses, and how many slots each lasts (a quarter is 2 slots, a 6/8 dotted quarter 3). */
-export const countIn = song => song.compound ? { pulses: 2, slots: 3 } : { pulses: song.beats === 3 ? 3 : 4, slots: 2 };
+export const countIn = song => meterOf(song) === 6 ? { pulses: 2, slots: 3 } : { pulses: meterOf(song), slots: 2 };
 
 // The strum steps: a beginner path from "down on the beat" to a full pattern, one set per meter, played over the song's first bars.
 const STEPS = {
@@ -83,13 +83,19 @@ const STEPS = {
   ],
 };
 
-/** The song's strum steps, in order: { name, strum, say } for its meter (4/4, 3/4 or 6/8). */
-export const strumSteps = song => STEPS[song.compound ? 6 : song.beats === 3 ? 3 : 4];
+for (const set of Object.values(STEPS)) set.forEach((step, i) => { step.n = i + 1; });   // n: the step's number, 1 = the first
 
-/** A stage's tempo in the song's unit: 60 quarters a minute, and in 6/8 60 dotted quarters (the pulse the song's bpm counts). */
-export const STEP_BPM = 60;
+/** The song's strum steps, in order: { n, name, strum, say } for its meter (4/4, 3/4 or 6/8). */
+export const strumSteps = song => STEPS[meterOf(song)];
 
-/** Stage n (1 = the first) as a song of its own: the song's first four bars, their chords kept, every bar strummed with the
- *  step, at STEP_BPM. The song itself is left as it was. */
-export const stepSong = (song, n) => ({ ...song, bpm: STEP_BPM,
-  bars: song.bars.slice(0, 4).map(bar => ({ chord: bar.chord, strum: strumSteps(song)[n - 1].strum })) });
+/** Step n of the song's (1 = the first), or undefined past either end. */
+export const stepAt = (song, n) => strumSteps(song)[n - 1];
+
+/** A stage's tempo in the song's unit: 60 quarters a minute, and in 6/8 60 dotted quarters (the pulse the song's bpm counts);
+ *  and how many of the song's first bars it plays over. */
+export const STEP_BPM = 60, STEP_BARS = 4;
+
+/** A step's stage as a song of its own: the song's first STEP_BARS bars, their chords kept (both of a two-chord bar), every bar
+ *  strummed with the step, at STEP_BPM. The song itself is left as it was. */
+export const stepSong = (song, step) => ({ ...song, bpm: STEP_BPM,
+  bars: song.bars.slice(0, STEP_BARS).map(bar => ({ chord: bar.chord, strum: step.strum })) });

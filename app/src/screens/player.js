@@ -3,7 +3,7 @@
 // nothing is drawn while the player is hidden, or while it is paused with nothing changing.
 import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
-import { loopRange, songSlot, speedUp, countIn, strumSteps, stepSong, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
 import { handAt, playedAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
@@ -17,10 +17,12 @@ const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace 
 const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z', pause: 'M6 4h4.5v16H6zM13.5 4H18v16h-4.5z' };
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
-let song, whole, step = 0, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
+let song, source, step = null, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
 let playerView = true, showHand = true, scenes;               // scenes: the 3D windows, made on first opening (null: no WebGL)
-// song: what plays, the whole song or a strum step's stage made from it; step: the stage, 0 = the whole song
-let drawn = { slot: -1, words: '', chord: '', next: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
+// song: what plays, the source song or a strum step's stage made from it; step: the strum step playing, null = the whole song
+let drawn, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
+const resetDrawn = () => { drawn = { slot: -1, words: '', chord: '', next: '' }; };
+resetDrawn();
 const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
 const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
 const per = () => slotsPerBar(song);
@@ -93,10 +95,13 @@ function showWhere(songAt) {
     if (i === j) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
   $('timeline').style.setProperty('--through', ((songAt / per() - sec.bar) / sec.bars).toFixed(3));
-  const { now, next } = lyricLines(song, songAt), key = JSON.stringify([now, next, step]);
+  const { now, next } = lyricLines(song, songAt), key = JSON.stringify([now, next, step?.n]);
   if (key === drawn.words) return;
   drawn.words = key;
-  if (step) return $('lyricNow').replaceChildren(), $('lyricNext').replaceChildren(strumSteps(whole)[step - 1].say);   // a stage has no words: say how to play it
+  if (step) {                                                  // a stage has no words: say how to play it
+    $('lyricNow').replaceChildren(); $('lyricNext').replaceChildren(step.say);
+    return;
+  }
   $('lyricNow').replaceChildren(...now ? [el('mark', { textContent: now.chord }), el('span', { textContent: now.sung }), el('span', { className: 'unsung', textContent: now.text.slice(now.sung.length) })] : []);
   $('lyricNext').replaceChildren(...next ? ['next: ', el('b', { textContent: next.chord }), ' ' + next.text] : []);
 }
@@ -155,13 +160,13 @@ export function setView({ player = playerView, hand = showHand } = {}) {
  *  (the song's, or STEP_BPM for a stage), at a bar (0 = the start), paused or playing. */
 export function openPlayer(s, { picks: p = {}, capo: c = 0, step: n = 0, tempo, bar = 0, play = false } = {}) {
   if (clock.playing) togglePlay();
-  whole = s; picks = p; capo = c;
+  source = s; picks = p; capo = c;
   // the 3D loads on first opening, so nothing of it exists behind the library; without WebGL (or offline) the player goes on without it
   if (scenes === undefined) scenes = import('../views/scene/index.js').then(m => { scenes = m.createScenes([...document.querySelectorAll('#player .scene')], redraw); redraw(); }, () => { scenes = null; });
-  $('playerSong').textContent = whole.title;
-  $('timeline').replaceChildren(...sections(whole).map(sec => el('li', { style: `flex-grow:${Math.max(sec.bars, whole.bars.length / 24)}` },   // a short section stays readable
+  $('playerSong').textContent = source.title;
+  $('timeline').replaceChildren(...sections(source).map(sec => el('li', { style: `flex-grow:${Math.max(sec.bars, source.bars.length / 24)}` },   // a short section stays readable
     el('button', { type: 'button', textContent: sec.name, title: `${sec.name}, bar ${sec.bar + 1}`, ariaLabel: `${sec.name}, bar ${sec.bar + 1}`, onclick: () => seek(sec.bar * per()) }))));
-  $('pulse').hidden = !whole.compound;
+  $('pulse').hidden = !source.compound;
   setStep(n, { tempo, bar });
   showScreen('player');
   if (play) togglePlay();
@@ -169,16 +174,21 @@ export function openPlayer(s, { picks: p = {}, capo: c = 0, step: n = 0, tempo, 
 }
 
 /** Plays strum step n (1 = the first) over the song's first bars at STEP_BPM, or with 0 (or a step the song does not have)
- *  the whole song again at its own tempo. From the start, or a bar given; playing goes on if it was. */
+ *  the whole song again at its own tempo. From the start, or a bar given; playing goes on if it was. While stepping the loop
+ *  stays the stage's bars: the bar and chord-change loops are off. */
 function setStep(n, { tempo, bar = 0 } = {}) {
-  const all = strumSteps(whole);
-  step = all[n - 1] ? n : 0;
-  song = step ? stepSong(whole, step) : whole;
-  kind = 'song'; drawn = { slot: -1, words: '', chord: '', next: '' };
+  const all = strumSteps(source);
+  step = stepAt(source, n) ?? null;
+  song = step ? stepSong(source, step) : source;
+  kind = 'song'; resetDrawn();
   $('timeline').hidden = !!step; $('steps').hidden = !step; toggle('stepsBtn', !!step);
+  $('loop').querySelectorAll('button').forEach(b => { b.disabled = !!step && b.dataset.kind !== 'song'; });
   if (step) {
-    $('stepOf').textContent = `Step ${step} of ${all.length}`; $('stepName').textContent = all[step - 1].name;
-    $('stepPrev').disabled = step === 1; $('stepNext').disabled = step === all.length;
+    $('stepDots').replaceChildren(...all.map(x => el('button', { type: 'button', textContent: x.n, title: x.name, ariaLabel: `Step ${x.n}: ${x.name}`,
+      ariaCurrent: x === step ? 'step' : null, onclick: () => setStep(x.n) })));
+    $('stepName').textContent = step.name;
+    $('stepPrev').disabled = step.n === 1;
+    $('stepNext').textContent = step.n < all.length ? 'Next step' : 'Now the song';
   }
   const at = Math.min(song.bars.length - 1, Math.max(0, bar)) * per();
   loop = loopRange(song, kind, at); clock.setLoop(loop); clock.seek(at);
@@ -188,8 +198,8 @@ function setStep(n, { tempo, bar = 0 } = {}) {
 $('play').onclick = togglePlay;
 $('stepsBtn').onclick = () => setStep(step ? 0 : 1);
 $('stepsDone').onclick = () => setStep(0);
-$('stepPrev').onclick = () => setStep(step - 1);
-$('stepNext').onclick = () => setStep(step + 1);
+$('stepPrev').onclick = () => setStep(step.n - 1);
+$('stepNext').onclick = () => setStep(step.n + 1);   // past the last step: the song
 $('reset').onclick = () => seek(0);
 $('tempo').min = TEMPO_MIN; $('tempo').max = TEMPO_MAX;
 $('tempo').oninput = e => setTempo(+e.target.value);

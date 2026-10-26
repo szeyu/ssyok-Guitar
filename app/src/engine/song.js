@@ -67,8 +67,11 @@ export function validateSong(song) {
   return err;
 }
 
+/** The meter: 4 (4/4), 3 (3/4) or 6 (6/8, beats: 3 with compound). */
+export const meterOf = song => song.compound ? 6 : song.beats === 3 ? 3 : 4;
+
 /** The song in one line, as the library card and song screen show it: tempo, capo, time, bars, and whether it has a melody or words. */
-export const songMeta = song => [`${song.bpm} bpm`, song.capo ? `capo on fret ${song.capo}` : 'no capo', song.compound ? '6/8 time' : song.beats === 3 ? '3/4 time' : '4/4 time', `${song.bars.length} bars`,
+export const songMeta = song => [`${song.bpm} bpm`, song.capo ? `capo on fret ${song.capo}` : 'no capo', `${{ 4: '4/4', 3: '3/4', 6: '6/8' }[meterOf(song)]} time`, `${song.bars.length} bars`,
   hasMelody(song) ? 'melody' : '', hasLyrics(song) ? 'lyrics' : ''].filter(Boolean).join(', ');
 
 /** Whether any bar has a melody line to sing or hear. */
