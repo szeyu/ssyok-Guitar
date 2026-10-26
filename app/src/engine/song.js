@@ -180,3 +180,7 @@ export function lyricLines(song, slot) {
     next: words(to) ? { chord: song.bars[to].chord, text: words(to) } : null,
   };
 }
+
+/** The riff notes picked on a slot at their own fret, as marks for the neck: [{ string (0 = thickest), fret }]. Open riff
+ *  notes are left out: there is nothing to press. */
+export const riffMarks = (song, slot) => Object.entries(slotAt(song, slot).stroke.fret).filter(([, fret]) => fret > 0).map(([string, fret]) => ({ string: +string, fret }));

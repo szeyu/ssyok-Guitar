@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chordsUsed } from '../app/src/engine/chords.js';
-import { validateSong, slotAt, slotsPerBar, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar, stretchSlots } from '../app/src/engine/song.js';
+import { validateSong, slotAt, slotsPerBar, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar, stretchSlots, riffMarks } from '../app/src/engine/song.js';
 
 const song = (over = {}) => ({ title: 'x', bpm: 80, bars: [{ chord: 'G', strum: 'D.DU.UDU' }], ...over });
 
@@ -143,4 +143,12 @@ test("a chord's stretch is its even share of the bar's slots", () => {
   assert.equal(stretchSlots(song({ bars: [{ chord: 'C E7', strum: 'D.DU.UDU' }] }), 0), 4);
   assert.equal(stretchSlots(song({ beats: 3, bars: [{ chord: 'G C D', strum: 'D.DUDU' }] }), 0), 2);
   assert.equal(stretchSlots(song(), 0), 8);
+});
+
+test('riff notes with their own fret are marked on the right string and fret', () => {
+  const riff = song({ bars: [{ chord: 'C', pluck: '5 2:3+3 1:0 . 6:12 3 2 1' }] });
+  assert.deepEqual(riffMarks(riff, 1), [{ string: 4, fret: 3 }]);   // string 2 (index 4) at fret 3; string 3 plays the chord's fret
+  assert.deepEqual(riffMarks(riff, 4), [{ string: 0, fret: 12 }]);
+  assert.deepEqual(riffMarks(riff, 2), []);                         // an open riff note needs no mark on the neck
+  assert.deepEqual(riffMarks(riff, 0), []);
 });

@@ -63,10 +63,12 @@
   <div id="tools" class="tools" role="group" aria-label="Tools" hidden>
     <button id="melody" type="button" aria-pressed="true"><span>Melody<small>Plays the tune over the chords, for songs that have one</small></span></button>
     <button id="ramp" type="button" aria-pressed="false"><span>Speed up each loop<small>Adds 5 bpm every time a loop comes round</small></span></button>
+    <button id="playerView" type="button" aria-pressed="true"><span>Player's view<small>Off: the guitar as the audience sees it</small></span></button>
+    <button id="showHand" type="button" aria-pressed="true"><span>Show the hand<small>Off: only the finger dots, so the strings show clearly</small></span></button>
   </div>
   <div class="stage">
     <div class="views">
-      <div class="view"><div class="scene"></div><span class="tag">Fretting hand</span></div>
+      <div class="view"><div class="scene"></div><span class="tag">Fretting hand</span><div id="chordFloat" class="float" role="img"></div></div>
       <div class="view"><div class="scene"></div><span class="tag">Strumming hand</span></div>
     </div>
     <div class="laneSheet">

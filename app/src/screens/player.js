@@ -1,12 +1,13 @@
-// The player: the top bar with the song and its section timeline, the Tools menu, the stage (the 3D views come in ticket 05,
-// the strum lane), and the transport. One clock drives the sound, the lane and the count-in; nothing is drawn while the
-// player is hidden, or while it is paused with nothing changing.
-import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
+// The player: the top bar with the song and its section timeline, the Tools menu, the stage (the two 3D windows with the
+// floating chord box, the strum lane), and the transport. One clock drives the sound, the 3D, the lane and the count-in;
+// nothing is drawn while the player is hidden, or while it is paused with nothing changing.
+import { slotAt, slotsPerBar, sections, lyricLines, riffMarks } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
-import { loopRange, songSlot, speedUp, countIn, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { loopRange, songSlot, speedUp, countIn, handAt, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
 import { drawLane, positionAt } from '../views/lane.js';
+import { chordBox } from '../views/chordbox.js';
 import { el } from '../views/dom.js';
 import { showScreen, onScreen, screenShowing } from './shell.js';
 
@@ -16,11 +17,13 @@ const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
 let song, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
-let drawn = { slot: -1, words: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
+let playerView = true, showHand = true, scenes;               // scenes: the 3D windows, made on first opening (null: no WebGL)
+let drawn = { slot: -1, words: '', box: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
 const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
 const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
 const per = () => slotsPerBar(song);
 const fretsOf = chord => voicing(song, chord, picks).frets;
+const still = matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: the hand still moves (it shows the change), the strings do not glow or shake
 
 const clock = createClock({
   play(slot, t, counting) {
@@ -50,6 +53,14 @@ function frame() {
   clock.tick();
   const { pos, countLeft } = clock.now();
   drawLane($('lane'), { song, loop, pos, countLeft, frets: fretsOf });
+  const hand = handAt(song, loop, pos, rate());
+  showChords(hand);
+  if (scenes?.draw) {                                          // still loading: a promise
+    const m = hand.move * hand.move * (3 - 2 * hand.move);      // eased: the fingers set off and land gently
+    const at = i => { const s = songSlot(song, loop, i), { stroke, count, chord } = slotAt(song, s); return { stroke, count, frets: fretsOf(chord), riff: riffMarks(song, s) }; };
+    scenes.draw({ pos, at, capo, playing: clock.playing, lit: clock.playing && !countLeft && !still.matches, playerView, showHand,
+      hand: { cur: voicing(song, hand.chord, picks), nxt: voicing(song, hand.next, picks), m } });
+  }
   const slot = Math.floor(pos), songAt = songSlot(song, loop, slot);
   if (sped && heardTime() >= sped.time) { showTempo(sped.bpm); sped = null; }
   if (LOG && clock.playing && !countLeft && slot !== drawn.slot && scheduled.has(slot)) {
@@ -61,6 +72,15 @@ function frame() {
   showWhere(songAt);
   if (clock.playing) raf = requestAnimationFrame(frame);
   else if (LOG) console.log('IDLE: the frame loop stops until something changes');
+}
+
+// the floating chord box: the chord held now and the next one, redrawn only when they change
+function showChords({ chord, next }) {
+  if (drawn.box === chord + '|' + next) return;
+  drawn.box = chord + '|' + next;
+  $('chordFloat').ariaLabel = `${chord}, next: ${next}`;
+  $('chordFloat').replaceChildren(el('p', { textContent: chord }), el('p', { className: 'nx' }, 'next: ', el('b', { textContent: next })),
+    chordBox(voicing(song, chord, picks)), chordBox(voicing(song, next, picks)));
 }
 
 // the section timeline and the words follow the position; the DOM changes only when what they show does
@@ -123,10 +143,18 @@ export function toggleTools(open = $('tools').hidden) {
 }
 const toggle = (id, on) => $(id).setAttribute('aria-pressed', String(on));
 
+/** Player's view (on: the guitar as you hold it; off: as the audience sees it) and Show the hand. */
+export function setView({ player = playerView, hand = showHand } = {}) {
+  toggle('playerView', playerView = player); toggle('showHand', showHand = hand);
+  redraw();
+}
+
 /** Opens the player for a song with your fingering picks and capo, at a tempo, at a bar (0 = the start), paused or playing. */
 export function openPlayer(s, { picks: p = {}, capo: c = 0, tempo = s.bpm, bar = 0, play = false } = {}) {
   if (clock.playing) togglePlay();
-  song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '' };
+  song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '', box: '' };
+  // the 3D loads on first opening, so nothing of it exists behind the library; without WebGL (or offline) the player goes on without it
+  if (scenes === undefined) scenes = import('../views/scene/index.js').then(m => { scenes = m.createScenes([...document.querySelectorAll('#player .scene')], redraw); redraw(); }, () => { scenes = null; });
   $('playerSong').textContent = song.title;
   $('timeline').replaceChildren(...sections(song).map(sec => el('li', { style: `flex-grow:${Math.max(sec.bars, song.bars.length / 24)}` },   // a short section stays readable
     el('button', { type: 'button', textContent: sec.name, title: `${sec.name}, bar ${sec.bar + 1}`, ariaLabel: `${sec.name}, bar ${sec.bar + 1}`, onclick: () => seek(sec.bar * per()) }))));
@@ -148,6 +176,8 @@ $('loop').querySelectorAll('button').forEach((b, i) => { b.dataset.kind = LOOPS[
 $('toolsBtn').onclick = () => toggleTools();
 $('melody').onclick = () => toggle('melody', melody = !melody);
 $('ramp').onclick = () => toggle('ramp', ramp = !ramp);
+$('playerView').onclick = () => setView({ player: !playerView });
+$('showHand').onclick = () => setView({ hand: !showHand });
 $('playerHome').onclick = () => showScreen('library');
 $('playerSong').onclick = () => showScreen('song');
 $('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer
@@ -163,6 +193,7 @@ $('lane').onkeydown = e => {                                    // with the lane
   seek(Math.min(song.bars.length - 1, Math.max(0, bar + step)) * per());
 };
 new ResizeObserver(redraw).observe($('lane'));
+new ResizeObserver(redraw).observe(document.querySelector('#player .views'));
 document.fonts?.addEventListener?.('loadingdone', redraw);
 
 onScreen('player', {

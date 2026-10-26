@@ -148,6 +148,15 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .view, .laneSheet { position: relative; min-height: 0; padding: 8px; border-radius: 22px; background: var(--grain), var(--panel); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line) }
 .scene { position: absolute; inset: 8px; border-radius: 18px; background: radial-gradient(120% 90% at 30% 20%, var(--scene), var(--scene-2)); box-shadow: inset 0 2px 6px var(--shade-3) }
 .tag { position: absolute; top: 20px; left: 20px; padding: 4px 12px; border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600 }
+.scene { overflow: hidden }
+.scene canvas.gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block }
+.float { position: absolute; top: 18px; right: 22px; display: grid; grid-template-columns: auto auto; gap: 4px 16px; padding: 12px 16px 8px; border-radius: 20px; background: var(--grain), var(--panel); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line); rotate: 1.2deg }
+.float:empty { display: none }
+.float p { margin: 0; font: 600 20px/1 var(--serif) }
+.float p.nx { align-self: end; font: 500 13px var(--ui); color: var(--mute) }
+.float p.nx b { font: 600 20px var(--serif); color: var(--ink) }
+.float .cb { width: 92px; height: auto; margin: 0 }
+.float .cb + .cb { opacity: .6 }
 .laneSheet { display: grid; grid-template-rows: minmax(0, 1fr) auto }
 .lane:focus-visible { outline: 2px solid var(--link); outline-offset: 3px }
 .lane { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 18px; background: var(--grain), var(--lane); box-shadow: inset 0 2px 5px var(--lane-shade); cursor: pointer }
@@ -186,6 +195,7 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
   .timeline, .keys, .ctl .hint { display: none }
   .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.5fr) }
   .transport { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px }
+  .float { scale: .7; transform-origin: top right }
 }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } .timeline button.now::after { display: none } }

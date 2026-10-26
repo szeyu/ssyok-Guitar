@@ -9,6 +9,10 @@
   --stroke-d: #f2b705; --stroke-u: #3d9bd6; --pluck: #3fbf72; --chuck: #9a9488;
   --lane: #ebd4b3; --lane-str: #8f6846; --lane-rule: #c9ad86;
   --scene: #28313b; --scene-2: #182029; --on-scene: #eae8df;
+  /* the 3D guitar and hand (views/scene/ reads these into its materials) */
+  --wood: #c9893f; --neck: #8a5a2b; --fretboard: #3a2a1e; --headstock: #2a1d14; --sound-hole: #0a0a0a; --nut: #f3ead2; --inlay: #e8e0c8;
+  --fret-wire: #c0c0c8; --string-wound: #c9a063; --string-plain: #dddddd; --capo-bar: #1a1a1f; --skin: #e9b98f;
+  --skip: #5a1f2a; --skip-ink: #ff8fa3; --string-glow: #ffcc80; --light: #ffffff;
   --serif: 'Chillax', ui-rounded, system-ui, sans-serif; --ui: var(--serif);
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 -4.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E");
   --shadow-card: 0 1px 2px #12161c10, 0 12px 28px -14px #12161c38;

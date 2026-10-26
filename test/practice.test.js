@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn } from '../app/src/engine/practice.js';
+import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn, handAt } from '../app/src/engine/practice.js';
 import { slotAt, sections, lyricLines } from '../app/src/engine/song.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
@@ -134,4 +134,40 @@ test('timed words light up as they are sung, and belong to their own bar only', 
   assert.deepEqual(lyricLines(s, 0).now, { chord: 'G', text: 'Hap-py birth-day to', sung: 'Hap-' });
   assert.equal(lyricLines(s, 3).now.sung, 'Hap-py birth-day');
   assert.deepEqual(lyricLines(s, 7), { now: null, next: { chord: 'G', text: 'you' } });
+});
+
+// the fretting hand: which shape it heads for, and when it lands
+const twoChords = { title: 'x', bpm: 120, bars: [{ chord: 'G', strum: 'D.DU.UDU' }, { chord: 'C', strum: 'D.DU.UDU' }] };
+const fullTempo = song => song.bpm / 60 * 2;                     // slots a second at the song's own tempo (4/4)
+
+test('the hand reaches the next chord shape before that chord sounds, at full tempo', () => {
+  const rate = fullTempo(twoChords), hand = handAt(twoChords, loopRange(twoChords, 'song', 0), 3, rate);
+  assert.equal(hand.chord, 'G'); assert.equal(hand.next, 'C');
+  assert.equal(hand.sounds, 8);                                  // C sounds on bar 2's first slot
+  assert.ok((hand.sounds - hand.lands) / rate >= .05, 'lands at least 50 ms early');
+  assert.equal(handAt(twoChords, loopRange(twoChords, 'song', 0), hand.lands, rate).move, 1);
+  assert.equal(handAt(twoChords, loopRange(twoChords, 'song', 0), 2, rate).move, 0);   // early in the bar it still holds G
+});
+
+test('a bar of two chords moves the hand at each chord inside the bar', () => {
+  const song = { title: 'x', bpm: 120, bars: [{ chord: 'C E', strum: 'D.DU.UDU' }, { chord: 'Am', strum: 'D.DU.UDU' }] };
+  const loop = loopRange(song, 'song', 0), rate = fullTempo(song);
+  const first = handAt(song, loop, 1, rate), second = handAt(song, loop, 5, rate);
+  assert.deepEqual([first.chord, first.next, first.sounds], ['C', 'E', 4]);
+  assert.deepEqual([second.chord, second.next, second.sounds], ['E', 'Am', 8]);
+  assert.ok(first.lands < 4 && second.lands < 8);
+});
+
+test('at the end of a loop the hand heads back to the loop\'s first chord', () => {
+  const song = { title: 'x', bpm: 120, bars: ['G', 'C', 'D'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
+  const loop = loopRange(song, 'bar', 9);                        // bar 2 (C) on its own
+  assert.equal(handAt(song, loop, 15, fullTempo(song)).next, 'C');
+  assert.equal(handAt(song, loopRange(song, 'song', 0), 23, fullTempo(song)).next, 'G');   // the song comes round to bar 1
+});
+
+test('a chord held over several bars: the hand heads for the next different chord, and moves only before it', () => {
+  const song = { title: 'x', bpm: 120, bars: ['G', 'G', 'D'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
+  const loop = loopRange(song, 'song', 0), rate = fullTempo(song), early = handAt(song, loop, 2, rate);
+  assert.deepEqual([early.chord, early.next, early.sounds, early.move], ['G', 'D', 16, 0]);
+  assert.ok(handAt(song, loop, early.lands, rate).move === 1 && early.lands < 16);
 });
