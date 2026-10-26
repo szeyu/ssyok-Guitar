@@ -239,3 +239,31 @@ test('making a stage leaves the song as it was, so leaving the steps plays the w
   for (const step of strumSteps(song)) stepSong(song, step);
   assert.deepEqual(song, before);
 });
+
+// ---- the fretting camera: the frets a bar uses, and where the camera frames them ----
+test('an open-chord bar keeps the camera at the nut, or at the capo', async () => {
+  const { fretSpan, cameraTarget } = await import('../app/src/engine/hand.js');
+  const song = { bpm: 90, beats: 4, bars: [{ chord: 'C', strum: 'D.DU.UDU' }] };
+  const span = fretSpan(song, 0, {});
+  assert.deepEqual(span, { lo: 1, hi: 3 });
+  assert.equal(cameraTarget(span, 0), 0);
+  assert.equal(cameraTarget(span, 3), 3);
+  assert.equal(cameraTarget({ lo: 0, hi: 0 }, 0), 0);                     // nothing fretted
+});
+
+test('a bar high up the neck spans its chord shape and its riff notes, and the camera moves to show them', async () => {
+  const { fretSpan, cameraTarget } = await import('../app/src/engine/hand.js');
+  const song = { bpm: 90, beats: 3, chords: { 'D(10)': [{ frets: [10, -1, -1, 11, 10, -1], fingers: [1, 0, 0, 2, 1, 0] }] },
+    bars: [{ chord: 'D(10)', pluck: '1:9+6:10 . 3:11 1:15 1:12 2:0' }] };     // riff notes at 9 and 15, an open string ignored
+  const span = fretSpan(song, 0, {});
+  assert.deepEqual(span, { lo: 9, hi: 15 });
+  const from = cameraTarget(span, 0);
+  assert.ok(from > 6.9 && from < 7.1, `frame starts near fret 7 (got ${from})`);   // fret 15 is 27.3 cm from the bridge, plus 16 cm of frame: fret 7.03
+  assert.ok(cameraTarget(span, 2) > from);                                  // a capo moves it further up
+});
+
+test('a bar of several chords spans every chord in it', async () => {
+  const { fretSpan } = await import('../app/src/engine/hand.js');
+  const song = { bpm: 90, beats: 4, chords: { Hi: [{ frets: [-1, 7, 9, 9, 8, 7], fingers: [0, 1, 3, 4, 2, 1] }] }, bars: [{ chord: 'G Hi', strum: 'D.DU.UDU' }] };
+  assert.deepEqual(fretSpan(song, 0, {}), { lo: 2, hi: 9 });
+});

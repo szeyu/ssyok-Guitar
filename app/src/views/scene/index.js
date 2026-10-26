@@ -7,12 +7,15 @@ import { buildGuitar, fretX, dotX, L } from './guitar.js';
 import { createHand } from './hand.js';
 import { createStrum } from './strum.js';
 
-const PERF = new URLSearchParams(location.search).has('perf');
+const PERF = new URLSearchParams(location.search).has('perf'), CAM = new URLSearchParams(location.search).has('cam');   // ?cam: the fretting camera's shift each frame
 const FAST_FOR = 3000;                                          // ms of fast frames before a step back up
+// the fretting camera glides to a new place on the neck as a critically damped spring: it sets off and arrives gently, never
+// overshoots, and the same whatever the frame rate. OMEGA per second: most of the way in about half a second
+const OMEGA = 8, SETTLED = .01;                                 // cm: closer than this, and still, it has arrived
 // the cameras look down at the guitar; up is the thickest string's side. Player's view turns them half round, so the headstock is
 // on the left and the thickest string at the bottom, as you look down at your own guitar (and as tab is written)
 const CAMS = [
-  { pos: [57, 22, -11], tgt: [57, 0, 0], zoom: .72, follow: true },   // fretting hand; follows the capo up the neck
+  { pos: [57, 22, -11], tgt: [57, 0, 0], zoom: .72, follow: true },   // fretting hand; follows the hand up the neck
   { pos: [10, 30, -14], tgt: [10, 0, 0], zoom: .85 },                 // strumming hand
 ];
 const TOKENS = { wood: 'wood', neck: 'neck', fretboard: 'fretboard', headstock: 'headstock', soundHole: 'sound-hole', nut: 'nut', inlay: 'inlay', fretWire: 'fret-wire',
@@ -38,6 +41,7 @@ export function createScenes(elements, ready) {
   const cams = CAMS.map(() => new THREE.PerspectiveCamera(40, 1, 1, 500));
   const top = Math.min(devicePixelRatio, 1.5);
   let scale = top, slow = 16, fast = 0, last = 0, perf = { n: 0, f: 0, s: 0, gap: 0 };
+  let camX, camV = 0, camAt = 0;                                // the fretting camera's shift along the neck (cm), its speed, when it moved
   renderers.forEach(r => r.setPixelRatio(scale));
 
   // the governor: a running average of the time between frames; above 28 ms, a quarter fewer pixels, down to half; under 20 ms
@@ -56,11 +60,25 @@ export function createScenes(elements, ready) {
     else if (fast > FAST_FOR && scale < top) step(.25);
   }
 
+  // moves the fretting camera towards shift x (cm); still: cuts straight there. True while it is still on its way
+  function follow(x, now, still) {
+    const dt = now - camAt > 100 ? 1 / 60 : (now - camAt) / 1000;   // after a pause it sets off from rest, not with a jump
+    camAt = now;
+    if (camX === undefined || still) { camX = x; camV = 0; return false; }
+    const e = camX - x, j = camV + OMEGA * e, k = Math.exp(-OMEGA * dt);   // the spring's exact step
+    camX = x + (e + j * dt) * k; camV = (camV - OMEGA * j * dt) * k;
+    if (Math.abs(camX - x) < SETTLED && Math.abs(camV) < SETTLED) { camX = x; camV = 0; }
+    return camX !== x;
+  }
+
   return {
-    /** Draws both windows. state: { pos, at, hand: { cur, nxt, move }, capo, playing, lit, still, playerView, showHand } (see the player). */
+    /** Draws both windows. state: { pos, at, hand: { cur, nxt, move }, capo, frame, playing, lit, still, playerView, showHand } (see the
+     *  player); frame: the fret the fretting camera heads for (cameraTarget). Returns true while that camera is still moving, so
+     *  a paused player draws on until it arrives. */
     draw(state) {
       const t0 = performance.now();
       govern(t0, state.playing);
+      const moving = follow(fretX(state.frame) - L, t0, state.still);
       capoBar.visible = state.capo > 0;
       if (state.capo) capoBar.position.x = dotX(state.capo);
       const { pos, at, capo, lit, still, playerView } = state;
@@ -71,7 +89,7 @@ export function createScenes(elements, ready) {
         if (!w || !h) return 0;
         const size = r.getSize(new THREE.Vector2());
         if (size.x !== w || size.y !== h) { r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
-        const dx = c.follow && state.capo ? fretX(state.capo) - L : 0, tgt = new THREE.Vector3(c.tgt[0] + dx, c.tgt[1], c.tgt[2]);
+        const dx = c.follow ? camX : 0, tgt = new THREE.Vector3(c.tgt[0] + dx, c.tgt[1], c.tgt[2]);
         cam.position.set(c.pos[0] + dx, c.pos[1], c.pos[2]).lerp(tgt, 1 - c.zoom);
         cam.up.set(0, 0, state.playerView ? 1 : -1); cam.lookAt(tgt);
         const s = performance.now(); r.render(scene, cam); return performance.now() - s;
@@ -83,6 +101,8 @@ export function createScenes(elements, ready) {
           perf = { n: 0, f: 0, s: 0, gap: 0, last: t0 };
         }
       } else perf.last = undefined;
+      if (CAM && state.playing) console.log('CAM', t0.toFixed(1), camX.toFixed(3));
+      return moving;
     },
   };
 }

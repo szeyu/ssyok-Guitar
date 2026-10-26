@@ -1,5 +1,6 @@
 // The ?log and ?perf traces: plays a song in headless Chrome in real time and prints its console. With &log it sums up each
-// slot's drawn-vs-scheduled lateness; with &perf it sums up the 3D frame times and the resolution scale chosen.
+// slot's drawn-vs-scheduled lateness; with &perf it sums up the 3D frame times and the resolution scale chosen; with &cam, the
+// fretting camera's largest move in one frame.
 // Usage: node tools/trace.js <url with &log or &perf> [seconds=14], e.g. node tools/trace.js "http://localhost:8765/app/?song=2&play=1&go=1&bpm=40&log"
 // WebGL is drawn by swiftshader (software), as in the screenshots: slow frames, which is what the governor is for.
 // Real time on purpose: --virtual-time-budget runs the page clock ahead of the AudioContext, so the count-in never ends
@@ -21,7 +22,7 @@ for (let i = 0; i < 50 && !page; i++) {
   await new Promise(r => setTimeout(r, 200));
   page = await fetch(`http://127.0.0.1:${port}/json`).then(r => r.json()).then(list => list.find(t => t.type === 'page')?.webSocketDebuggerUrl, () => null);
 }
-const late = [], frames = [], socket = new WebSocket(page);
+const late = [], frames = [], cam = [], socket = new WebSocket(page);
 socket.onopen = () => ['Runtime.enable', ['Page.navigate', { url }]].forEach((m, id) => socket.send(JSON.stringify({ id, ...(Array.isArray(m) ? { method: m[0], params: m[1] } : { method: m }) })));
 socket.onmessage = e => {
   const { method, params } = JSON.parse(e.data);
@@ -33,11 +34,17 @@ socket.onmessage = e => {
   if (ms) late.push(+ms);
   const gap = line.match(/^PERF frame every ([\d.]+)ms.* scale ([\d.]+)/);
   if (gap) frames.push(`${gap[1]}ms@${gap[2]}`);
+  const x = line.match(/^CAM ([\d.]+) (-?[\d.]+)/);
+  if (x) cam.push([+x[1], +x[2]]);
 };
 setTimeout(() => {
   browser.kill();
   late.sort((a, b) => a - b);
+  if (cam.length) {
+    const steps = cam.slice(1).map(([t, x], i) => ({ dx: Math.abs(x - cam[i][1]), dt: t - cam[i][0] })), big = steps.reduce((a, b) => b.dx > a.dx ? b : a, { dx: 0, dt: 0 });
+    console.log(`camera: ${cam.length} frames, moved ${Math.min(...cam.map(c => c[1])).toFixed(2)} to ${Math.max(...cam.map(c => c[1])).toFixed(2)} cm, largest step ${big.dx.toFixed(3)} cm in ${big.dt.toFixed(1)} ms`);
+  }
   if (frames.length) console.log(`3D frame gaps at each scale: ${frames.join(' ')}`);
   console.log(late.length ? `drawn ${late.length} slots, late ms: min ${late[0]} median ${late[late.length >> 1]} max ${late.at(-1)}` : 'no DRAW lines');
-  process.exit(late.length || frames.length ? 0 : 1);
+  process.exit(late.length || frames.length || cam.length ? 0 : 1);
 }, seconds * 1000);

@@ -5,7 +5,7 @@ import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
 import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, slower, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
 import { judge } from '../engine/judge.js';
-import { handAt, playedAt } from '../engine/hand.js';
+import { handAt, playedAt, fretSpan, cameraTarget } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
 import { onOnset } from '../audio/mic.js';
@@ -19,6 +19,7 @@ import { toggleTuner } from './tuner.js';
 const $ = id => document.getElementById(id);
 const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace of when each slot is scheduled and when it is drawn
 const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z', pause: 'M6 4h4.5v16H6zM13.5 4H18v16h-4.5z' };
+const CAMERA_LEAD = .5;                                         // seconds: the fretting camera heads for the next bar this early, so it is there when the hand is
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
 let song, source, step = null, picks, capo = 0, onBar = null, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
@@ -63,6 +64,7 @@ const clock = createClock({
 function redraw() { if (!raf) raf = requestAnimationFrame(frame); }
 function frame() {
   raf = 0;
+  let moving = false;                                           // the fretting camera still on its way: draw on, even paused
   if (screenShowing() !== 'player') return;
   clock.tick();
   if (clock.over) return finish();
@@ -72,7 +74,8 @@ function frame() {
   showChords(hand);
   if (scenes?.draw) {                                          // still loading: a promise
     const eased = hand.move * hand.move * (3 - 2 * hand.move);  // the fingers set off and land gently
-    scenes.draw({ pos, at: i => playedAt(song, songSlot(song, loop, i), picks), capo, playing: clock.playing, lit: clock.playing && !countLeft && !still.matches,
+    const ahead = Math.floor(songSlot(song, loop, Math.floor(pos + CAMERA_LEAD * rate())) / per());
+    moving = scenes.draw({ pos, at: i => playedAt(song, songSlot(song, loop, i), picks), capo, frame: cameraTarget(fretSpan(song, ahead, picks), capo), playing: clock.playing, lit: clock.playing && !countLeft && !still.matches,
       still: still.matches, playerView, showHand, hand: { cur: voicing(song, hand.chord, picks), nxt: voicing(song, hand.next, picks), move: eased } });
   }
   const slot = Math.floor(pos), songAt = songSlot(song, loop, slot);
@@ -84,7 +87,7 @@ function frame() {
   }
   if (!countLeft) drawn.slot = slot;
   showWhere(songAt);
-  if (clock.playing) raf = requestAnimationFrame(frame);
+  if (clock.playing || moving) raf = requestAnimationFrame(frame);
   else if (LOG) console.log('IDLE: the frame loop stops until something changes');
 }
 
