@@ -6,9 +6,13 @@
 
 **Status:** ready-for-agent
 
-- [ ] The app opens from a plain static server with no build step and shows the library in the Hum look
-- [ ] The song engine has no DOM, audio or 3D imports
-- [ ] Node's test runner passes, with no dependencies installed. Tests cover: validation errors (bad bpm, unknown chord, wrong slot count, wrong-direction stroke in simple time, a 3-beat bar with 8 strokes); picked, mixed and riff-note bars; two chords in a bar; timed vs plain lyrics; note-name pitches
-- [ ] Every song file in the songs folder passes validation in a test
-- [ ] A deliberately broken song file is skipped and named in the library note
-- [ ] The prototype folder is unchanged
+- [x] The app opens from a plain static server with no build step and shows the library in the Hum look
+- [x] The song engine has no DOM, audio or 3D imports
+- [x] Node's test runner passes, with no dependencies installed. Tests cover: validation errors (bad bpm, unknown chord, wrong slot count, wrong-direction stroke in simple time, a 3-beat bar with 8 strokes); picked, mixed and riff-note bars; two chords in a bar; timed vs plain lyrics; note-name pitches
+- [x] Every song file in the songs folder passes validation in a test
+- [x] A deliberately broken song file is skipped and named in the library note
+- [x] The prototype folder is unchanged
+
+## Comments
+
+Done in e985cd4, review fixes in 47f41ab. Songs were copied rather than moved, so the prototype stays unchanged as the reference.

@@ -192,7 +192,7 @@ prototype/              the reference, unchanged
 
 **Song file format** (decided in the prototype; `prototype/songs/SKILL.md` is the authoring guide):
 - Top level:
-  - `title`, `bpm` (40–200, quarter notes a minute), optional `capo` (0–7), `beats` (3 or 4)
+  - `title`, `bpm` (40–200: quarter notes a minute, or in 6/8 the dotted-quarter pulse, which the app multiplies by 1.5), optional `capo` (0–7), `beats` (3 or 4)
   - `compound: true` for 6/8 (needs `beats: 3`)
   - optional `chords` (name → list of `{name, frets[6], fingers[6], tip}`, thickest string first, -1 = not played)
 - Each bar has `chord` (one name, or several separated by spaces, which must divide the bar's slot count) and at least one of these:
