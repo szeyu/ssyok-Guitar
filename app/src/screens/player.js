@@ -7,7 +7,9 @@ import { loopRange, songSlot, speedUp, countIn, strumSteps, stepAt, stepSong, sl
 import { judge } from '../engine/judge.js';
 import { handAt, playedAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
-import { createSynth } from '../audio/synth.js';
+import { createSynth, OPEN_HZ } from '../audio/synth.js';
+import { listen } from '../audio/mic.js';
+import { nearestString } from '../audio/pitch.js';
 import { drawLane, positionAt, hitLineY } from '../views/lane.js';
 import { chordBox } from '../views/chordbox.js';
 import { el } from '../views/dom.js';
@@ -129,7 +131,7 @@ export function showVerdict({ text, tone }, held = false) {
     : [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 1, offset: .4 }, { opacity: 0, transform: `translateY(-${VERDICT_RISE}px)` }], { duration: VERDICT_MS, easing: 'ease-out' });
 }
 
-/** Judges a tap going dir ('D' or 'U') pressed ago seconds back, against the nearest stroke of the song as it is heard. A tap after
+/** Judges a tap going dir ('D' or 'U'; null: a strum the microphone heard, judged on time only) made ago seconds back, against the nearest stroke of the song as it is heard. A tap after
  *  the whole song's end (the clock holds there) is not judged. */
 function tap(dir, ago) {
   const { pos, countLeft } = clock.now(ago);
@@ -139,6 +141,45 @@ function tap(dir, ago) {
   const v = judge(song, songEnds() ? at : songSlot(song, loop, near) + at - near, dir, rate());
   if (!v) return;
   run.verdicts.push(v); showVerdict(v);
+}
+
+// ---- the microphone: Listen to me sends each strum it hears through tap, as the arrow keys do; the tuner ----
+const BLOCKED = "The microphone is blocked, so the app can't hear you. You can still tap the arrow keys.";
+const STRINGS = ['E', 'A', 'D', 'G', 'B', 'e'], IN_TUNE = 5, NEEDLE_CENTS = 50, FAR = 250;   // within ±5 cents is in tune; the needle spans ±50; strings are at most 500 cents apart
+let listening = false;
+const micNote = text => { $('micNote').textContent = text; $('micNote').hidden = !text; };
+
+async function setListening(on) {
+  toggle('listen', listening = on);
+  if (!on) { listen('onset', null); micNote(''); return; }
+  micNote('Listening. Use headphones, so the microphone hears your guitar and not the app.');
+  if (!await listen('onset', ago => { if (clock.playing) tap(null, ago); })) { toggle('listen', listening = false); micNote(BLOCKED); }
+}
+
+/** Opens or closes the tuner (no argument: the other way). It listens until closed; with fake readings (Hz, for ?tuner)
+ *  it shows those instead and leaves the microphone alone. */
+export async function toggleTuner(open = $('tuner').hidden, fake) {
+  $('tuner').hidden = !open; toggle('tunerBtn', open);
+  if (!open) return void listen('pitch', null);              // the mic stays open if Listen to me is on
+  $('tunerSay').textContent = 'Play one open string and let it ring.';
+  $('tunerStrings').replaceChildren(...STRINGS.map((name, s) => el('li', { ariaLabel: `${name} string` },
+    el('b', { textContent: name }), el('span', { className: 'meter' }, el('i')), el('span', { className: 'off', textContent: '–' }))));
+  if (fake) return fake.forEach(showTuning);
+  if (!await listen('pitch', showTuning)) { $('tuner').hidden = true; toggle('tunerBtn', false); micNote(BLOCKED); }
+}
+
+// a reading: the string it is nearest gets the needle and is lit; the other strings keep their last reading
+function showTuning(hz) {
+  if (!hz) return;                                            // quiet: the last reading stays
+  const { s, cents } = nearestString(hz, OPEN_HZ), c = Math.round(cents), ok = Math.abs(c) <= IN_TUNE;
+  if (Math.abs(c) > FAR) return;                              // above the thinnest or below the thickest string: not an open string
+  [...$('tunerStrings').children].forEach((li, i) => { li.classList.toggle('now', i === s); li.ariaCurrent = i === s ? 'true' : null; });
+  const li = $('tunerStrings').children[s];
+  li.style.setProperty('--c', Math.max(-NEEDLE_CENTS, Math.min(NEEDLE_CENTS, c)) / NEEDLE_CENTS);
+  li.classList.toggle('ok', ok);
+  li.lastChild.textContent = c > 0 ? `+${c}` : String(c);
+  const say = `${STRINGS[s]} string: ${ok ? 'in tune' : c < 0 ? `${-c} cents low, tighten it` : `${c} cents high, loosen it`}`;
+  if ($('tunerSay').textContent !== say) $('tunerSay').textContent = say;
 }
 
 // the song has played to its end: stop, go back to the start, and show how it went
@@ -260,6 +301,9 @@ $('melody').onclick = () => toggle('melody', melody = !melody);
 $('ramp').onclick = () => toggle('ramp', ramp = !ramp);
 $('playerView').onclick = () => setView({ player: !playerView });
 $('showHand').onclick = () => setView({ hand: !showHand });
+$('listen').onclick = () => setListening(!listening);
+$('tunerBtn').onclick = () => toggleTuner();
+$('tunerClose').onclick = () => toggleTuner(false);
 $('playerHome').onclick = () => showScreen('library');
 $('playerSong').onclick = () => showScreen('song');
 $('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer
@@ -279,10 +323,10 @@ new ResizeObserver(redraw).observe(document.querySelector('#player .views'));
 document.fonts?.addEventListener?.('loadingdone', redraw);
 
 onScreen('player', {
-  esc() {                                                       // Esc closes the results card, then Tools, then leaves the steps, then the player
-    if (resultsShowing()) closeResults(); else if (!$('tools').hidden) toggleTools(false); else if (step) setStep(0); else showScreen('song');
+  esc() {                                                       // Esc closes the results card, then the tuner, then Tools, then leaves the steps, then the player
+    if (resultsShowing()) closeResults(); else if (!$('tuner').hidden) toggleTuner(false); else if (!$('tools').hidden) toggleTools(false); else if (step) setStep(0); else showScreen('song');
   },
-  leave() { if (clock.playing) togglePlay(); toggleTools(false); closeResults(); },
+  leave() { if (clock.playing) togglePlay(); toggleTools(false); closeResults(); toggleTuner(false); if (listening) setListening(false); },
 });
 addEventListener('keydown', e => {
   if (screenShowing() !== 'player') return;

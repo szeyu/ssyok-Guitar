@@ -153,6 +153,26 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .tools small { display: block; color: var(--mute); font-size: 12px; font-weight: 500 }
 .tools button::after { content: ''; flex: none; width: 32px; height: 18px; border-radius: 9px; background: radial-gradient(circle at 9px 50%, var(--mute) 6px, var(--line) 6.5px) }
 .tools button[aria-pressed=true]::after { background: radial-gradient(circle at 23px 50%, var(--brass-ink) 6px, var(--brass) 6.5px) }
+.micNote { margin: 4px 12px 6px; font-size: 13px; color: var(--ink-2) }
+.micNote[hidden] { display: none }
+/* the tuner: a needle per string, ±50 cents across; the string heard is lit (reduced motion: the needle jumps) */
+.tuner { position: absolute; right: 16px; bottom: 96px; z-index: 6; width: 300px; padding: 14px 16px; background: var(--grain), var(--panel); border-radius: 20px; box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card), 0 24px 50px -20px var(--shade-3) }
+.tuner[hidden] { display: none }
+.tunerTop { display: flex; justify-content: space-between; align-items: center }
+.tuner h2 { margin: 0; font: 600 20px var(--serif); letter-spacing: -.01em }
+.tuner p { margin: 4px 0 10px; font-size: 13px; color: var(--mute) }
+.tuner ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px }
+.tuner li { display: grid; grid-template-columns: 18px 1fr 34px; align-items: center; gap: 10px; color: var(--dim); font-variant-numeric: tabular-nums }
+.tuner li b { font-weight: 600 }
+.tuner .off { font-size: 13px; text-align: right }
+.tuner .meter { position: relative; height: 10px; border-radius: 5px; background: var(--raise); box-shadow: inset 0 0 0 1px var(--line) }
+.tuner .meter::before { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--line) }
+.tuner .meter i { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; border-radius: 2px; left: calc(50% + var(--c, 0) * 50%); background: var(--dim); transition: left .15s var(--ease-snap) }
+.tuner li:not([style]) .meter i { display: none }
+.tuner li.now { color: var(--ink) }
+.tuner li.now .meter i { background: var(--ink) }
+.tuner li.ok .off { color: var(--good) }
+.tuner li.now.ok .meter i { background: var(--good) }
 
 .stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; min-height: 0; padding: 16px 16px 12px }
 .views { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0 }

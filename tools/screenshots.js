@@ -19,6 +19,7 @@ const STATES = [
   { name: 'tools', path: 'app/?song=2&play=1&at=7&tools=1', size: [1280, 800] },
   { name: 'drill', path: 'app/?song=2&drill=2', size: [1280, 800] },
   { name: 'verdict', path: 'app/?song=2&play=1&at=7&verdict=Late%2040%20ms', size: [1280, 800] },
+  { name: 'tuner', path: 'app/?song=2&play=1&at=7&tuner=1', size: [1280, 800] },
   { name: 'results', path: 'app/?song=2&done=1', size: [1280, 800] },
 ];
 

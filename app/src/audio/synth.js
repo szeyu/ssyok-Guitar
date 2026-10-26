@@ -1,7 +1,21 @@
 // The guitar sound: a string model for strums, picked notes and riffs, a chuck, the click on the pulse, and the melody voice.
 // Everything is scheduled at an AudioContext time; nothing here knows about songs.
 
-const OPEN_HZ = [82.41, 110, 146.83, 196, 246.94, 329.63];      // the open strings, thickest first
+/** The open strings in standard tuning (E2 A2 D3 G3 B3 E4), thickest first. */
+export const OPEN_HZ = [82.41, 110, 146.83, 196, 246.94, 329.63];
+/** The pitch of string s (0 = thickest) at a fret (where the note sounds: the capo already added). */
+export const stringHz = (s, fret) => OPEN_HZ[s] * 2 ** (fret / 12);
+
+/** Karplus-Strong: a burst of noise goes round a delay line one string-period long, smoothed each lap, as a plucked string does.
+ *  Returns seconds of samples at sampleRate, and the playback rate that tunes them to freq (the delay is whole samples). */
+export function pluckString(freq, sampleRate, seconds = 2.5) {
+  const sr = sampleRate, N = Math.max(2, Math.round(sr / freq + .5)), d = new Float32Array(Math.round(sr * seconds));
+  let prev = 0;
+  for (let i = 0; i < N; i++) prev = d[i] = .55 * (Math.random() * 2 - 1) + .45 * prev;     // slightly dulled noise: a softer pick
+  for (let i = N; i < d.length; i++) d[i] = (d[i - N] + d[i - N + 1]) * .4985;               // each lap: average two samples, lose a little
+  for (let i = 0, f = sr * .4; i < f; i++) d[d.length - 1 - i] *= i / f;                     // fade the tail so a long note ends without a click
+  return { data: d, rate: freq * (N - .5) / sr };                                            // averaging d[i-N] and d[i-N+1] makes the period N - .5
+}
 
 /** A synth on ctx. Frets are where the note sounds (the capo already added). */
 export function createSynth(ctx) {
@@ -12,23 +26,19 @@ export function createSynth(ctx) {
   top.type = 'lowpass'; top.frequency.value = 5200; level.gain.value = .7;
   body.connect(top).connect(level).connect(out);
 
-  // Karplus-Strong: a burst of noise goes round a delay line one string-period long, smoothed each lap, as a plucked string does.
-  // ponytail: one model for every string; swap for recorded samples if it sounds thin.
+  // ponytail: one string model (pluckString) for every string; swap for recorded samples if it sounds thin.
   const bufs = new Map(), ringing = [];
   function pluckBuf(freq) {
     const key = Math.round(freq * 4);
     if (!bufs.has(key)) {
-      const sr = ctx.sampleRate, N = Math.max(2, Math.round(sr / freq - .5)), buf = ctx.createBuffer(1, sr * 2.5, sr), d = buf.getChannelData(0);
-      let prev = 0;
-      for (let i = 0; i < N; i++) prev = d[i] = .55 * (Math.random() * 2 - 1) + .45 * prev;     // slightly dulled noise: a softer pick
-      for (let i = N; i < d.length; i++) d[i] = (d[i - N] + d[i - N + 1]) * .4985;               // each lap: average two samples, lose a little
-      for (let i = 0, f = sr * .4; i < f; i++) d[d.length - 1 - i] *= i / f;                     // fade the tail so a long note ends without a click
-      bufs.set(key, { buf, rate: freq * (N + .5) / sr });                                        // the delay is whole samples; playback rate tunes it
+      const { data, rate } = pluckString(freq, ctx.sampleRate), buf = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      buf.copyToChannel(data, 0);
+      bufs.set(key, { buf, rate });
     }
     return bufs.get(key);
   }
   function twang(s, fret, t, vel) {
-    const { buf, rate } = pluckBuf(OPEN_HZ[s] * 2 ** (fret / 12)), src = ctx.createBufferSource(), g = ctx.createGain();
+    const { buf, rate } = pluckBuf(stringHz(s, fret)), src = ctx.createBufferSource(), g = ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate; g.gain.setValueAtTime(vel * (.9 + .2 * Math.random()), t);
     ringing[s]?.gain.setTargetAtTime(0, t, .006);              // a string sounds one note at a time: the new pluck cuts the old one
     ringing[s] = g; src.connect(g).connect(body); src.start(t);

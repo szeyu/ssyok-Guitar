@@ -72,6 +72,14 @@
     <button id="ramp" type="button" aria-pressed="false"><span>Speed up each loop<small>Adds 5 bpm each time a bar, chord-change or step loop comes round</small></span></button>
     <button id="playerView" type="button" aria-pressed="true"><span>Player's view<small>Off: the guitar as the audience sees it</small></span></button>
     <button id="showHand" type="button" aria-pressed="true"><span>Show the hand<small>Off: only the finger dots, so the strings show clearly</small></span></button>
+    <button id="listen" type="button" aria-pressed="false"><span>Listen to me<small>Judges your real strums through the microphone. Use headphones</small></span></button>
+    <button id="tunerBtn" type="button" aria-pressed="false" aria-controls="tuner"><span>Tuner<small>Shows how far each string is from its pitch</small></span></button>
+    <p id="micNote" class="micNote" aria-live="polite" hidden></p>
+  </div>
+  <div id="tuner" class="tuner" role="group" aria-labelledby="tunerHead" hidden>
+    <div class="tunerTop"><h2 id="tunerHead">Tuner</h2><button id="tunerClose" class="ghost" type="button">Close</button></div>
+    <p id="tunerSay" aria-live="polite">Play one open string and let it ring.</p>
+    <ol id="tunerStrings"></ol>
   </div>
   <div class="stage">
     <div class="views">
