@@ -1,10 +1,10 @@
 // The player: the top bar with the song and its section timeline, the Tools menu, the stage (the 3D views come in ticket 05,
 // the strum lane), and the transport. One clock drives the sound, the lane and the count-in; nothing is drawn while the
 // player is hidden, or while it is paused with nothing changing.
-import { slotAt, slotsPerBar } from '../engine/song.js';
+import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
-import { loopRange, songSlot, speedUp, sections, countIn, lyricLines, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
-import { createClock, audioContext } from '../audio/clock.js';
+import { loopRange, songSlot, speedUp, countIn, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
 import { drawLane, positionAt } from '../views/lane.js';
 import { el } from '../views/dom.js';
@@ -16,7 +16,7 @@ const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
 let song, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
-let drawn = { slot: -1, words: '' };
+let drawn = { slot: -1, words: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
 const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
 const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
 const per = () => slotsPerBar(song);
@@ -26,17 +26,20 @@ const clock = createClock({
   play(slot, t, counting) {
     const { pulses, slots } = countIn(song);
     if (counting) { if ((start - slot) % slots === 0) synth.click(t, start - slot === pulses * slots); return; }
-    const x = slotAt(song, songSlot(song, loop, slot)), si = songSlot(song, loop, slot) % per(), k = x.stroke;
-    if (LOG) { scheduled.set(slot, t); console.log(`PLAY slot=${slot} at=${t.toFixed(3)} bar=${x.bar + 1} count=${x.count} chord=${x.chord} bpm=${bpm}`); }
-    if (si % slots === 0) synth.click(t, si === 0);
-    if (melody && x.note) synth.sing(x.note.hz * 2 ** (capo / 12), t, x.note.slots / rate());
-    if (!k.hit) return;
-    if (k.chuck) return synth.chuck(t);
-    const fr = fretsOf(x.chord), up = f => f < 0 ? -1 : f + capo;
-    if (k.pluck) return synth.pick(k.pluck.map(s => ({ s, fret: up(k.fret[s] ?? fr[s]) })).filter(n => n.fret >= 0), t);
-    synth.strum(fr.map(up), k.dir, k.accent, t);
+    const songAt = songSlot(song, loop, slot), here = slotAt(song, songAt), inBar = songAt % per(), stroke = here.stroke;
+    if (LOG) { scheduled.set(slot, t); console.log(`PLAY slot=${slot} at=${t.toFixed(3)} bar=${here.bar + 1} count=${here.count} chord=${here.chord} bpm=${bpm}`); }
+    if (inBar % slots === 0) synth.click(t, inBar === 0);
+    if (melody && here.note) synth.sing(here.note.hz * 2 ** (capo / 12), t, here.note.slots / rate());
+    if (!stroke.hit) return;
+    if (stroke.chuck) return synth.chuck(t);
+    const frets = fretsOf(here.chord), up = f => f < 0 ? -1 : f + capo;
+    if (stroke.pluck) return synth.pick(stroke.pluck.map(s => ({ s, fret: up(stroke.fret[s] ?? frets[s]) })).filter(n => n.fret >= 0), t);
+    synth.strum(frets.map(up), stroke.dir, stroke.accent, t);
   },
-  lap() { if (ramp) showTempo(speedUp(bpm)); return rate(); },  // a loop comes round: a little faster if asked (the clock takes the new rate from here)
+  lap(time) {                                                   // a loop comes round: a little faster if asked (the clock takes the new rate from here)
+    if (ramp) { bpm = speedUp(bpm); sped = { time, bpm }; }
+    return rate();
+  },
 });
 
 // ---- drawing: one frame at a time, only while something changes ----
@@ -47,28 +50,29 @@ function frame() {
   clock.tick();
   const { pos, countLeft } = clock.now();
   drawLane($('lane'), { song, loop, pos, countLeft, frets: fretsOf });
-  const slot = Math.floor(pos), at = songSlot(song, loop, slot);
+  const slot = Math.floor(pos), songAt = songSlot(song, loop, slot);
+  if (sped && heardTime() >= sped.time) { showTempo(sped.bpm); sped = null; }
   if (LOG && clock.playing && !countLeft && slot !== drawn.slot && scheduled.has(slot)) {
-    const ctx = audioContext(), heard = ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0), late = (heard - scheduled.get(slot)) * 1000;
+    const heard = heardTime(), late = (heard - scheduled.get(slot)) * 1000;
     console.log(`DRAW slot=${slot} at=${heard.toFixed(3)} scheduled=${scheduled.get(slot).toFixed(3)} late=${late.toFixed(1)}ms bpm=${bpm}`);
     scheduled.delete(slot);
   }
   if (!countLeft) drawn.slot = slot;
-  showWhere(at);
+  showWhere(songAt);
   if (clock.playing) raf = requestAnimationFrame(frame);
   else if (LOG) console.log('IDLE: the frame loop stops until something changes');
 }
 
 // the section timeline and the words follow the position; the DOM changes only when what they show does
-function showWhere(at) {
-  const bar = Math.floor(at / per()), all = sections(song), j = all.findLastIndex(s => s.bar <= bar), sec = all[j];
+function showWhere(songAt) {
+  const bar = Math.floor(songAt / per()), all = sections(song), j = all.findLastIndex(s => s.bar <= bar), sec = all[j];
   [...$('timeline').children].forEach((li, i) => {
     const b = li.firstChild;
     b.classList.toggle('past', i < j); b.classList.toggle('now', i === j);
     if (i === j) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
-  $('timeline').style.setProperty('--through', ((at / per() - sec.bar) / sec.bars).toFixed(3));
-  const { now, next } = lyricLines(song, at), key = JSON.stringify([now, next]);
+  $('timeline').style.setProperty('--through', ((songAt / per() - sec.bar) / sec.bars).toFixed(3));
+  const { now, next } = lyricLines(song, songAt), key = JSON.stringify([now, next]);
   if (key === drawn.words) return;
   drawn.words = key;
   $('lyricNow').replaceChildren(...now ? [el('mark', { textContent: now.chord }), el('span', { textContent: now.sung }), el('span', { className: 'unsung', textContent: now.text.slice(now.sung.length) })] : []);
@@ -81,13 +85,13 @@ function showTempo(v) {
   $('tempo').value = bpm; $('bpm').textContent = bpm;
   $('tempo').style.setProperty('--fill', `${100 * (bpm - TEMPO_MIN) / (TEMPO_MAX - TEMPO_MIN)}%`);
 }
-function setTempo(v) { showTempo(v); clock.setRate(rate()); }
+function setTempo(v) { sped = null; showTempo(v); clock.setRate(rate()); }
 
 function setLoop(k) {
   kind = k;
-  const { pos } = clock.now(), at = songSlot(song, loop, Math.floor(pos));
-  loop = loopRange(song, kind, at); clock.setLoop(loop);
-  if (Math.floor(pos) !== at) clock.seek(at + pos % 1);       // the position had run on past the song's end inside a loop
+  const { pos } = clock.now(), songAt = songSlot(song, loop, Math.floor(pos));
+  loop = loopRange(song, kind, songAt); clock.setLoop(loop);
+  if (Math.floor(pos) !== songAt) clock.seek(songAt + pos % 1);       // the position had run on past the song's end inside a loop
   $('loop').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
   redraw();
 }
@@ -113,7 +117,8 @@ function togglePlay() {
   redraw();
 }
 
-function toggleTools(open = $('tools').hidden) {
+/** Opens or closes the Tools menu (no argument: the other way). */
+export function toggleTools(open = $('tools').hidden) {
   $('tools').hidden = !open; $('toolsBtn').setAttribute('aria-expanded', String(open));
 }
 const toggle = (id, on) => $(id).setAttribute('aria-pressed', String(on));
@@ -124,7 +129,7 @@ export function openPlayer(s, { picks: p = {}, capo: c = 0, tempo = s.bpm, bar =
   song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '' };
   $('playerSong').textContent = song.title;
   $('timeline').replaceChildren(...sections(song).map(sec => el('li', { style: `flex-grow:${Math.max(sec.bars, song.bars.length / 24)}` },   // a short section stays readable
-    el('button', { type: 'button', textContent: sec.name, title: `${sec.name}, bar ${sec.bar + 1}`, onclick: () => seek(sec.bar * per()) }))));
+    el('button', { type: 'button', textContent: sec.name, title: `${sec.name}, bar ${sec.bar + 1}`, ariaLabel: `${sec.name}, bar ${sec.bar + 1}`, onclick: () => seek(sec.bar * per()) }))));
   $('pulse').hidden = !song.compound;
   const bars = Math.min(song.bars.length - 1, Math.max(0, bar));
   loop = loopRange(song, kind, bars * per()); clock.setLoop(loop); clock.seek(bars * per());
@@ -133,9 +138,6 @@ export function openPlayer(s, { picks: p = {}, capo: c = 0, tempo = s.bpm, bar =
   if (play) togglePlay();
   redraw();
 }
-
-/** Opens or closes the Tools menu. */
-export const openTools = open => toggleTools(open);
 
 $('play').onclick = togglePlay;
 $('reset').onclick = () => seek(0);
@@ -150,8 +152,15 @@ $('playerHome').onclick = () => showScreen('library');
 $('playerSong').onclick = () => showScreen('song');
 $('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer
   const { pos } = clock.now(), r = e.currentTarget.getBoundingClientRect();
-  const at = songSlot(song, loop, Math.max(0, Math.round(positionAt(e.currentTarget, e.clientY - r.top, pos))));
-  seek(Math.floor(at / per()) * per());
+  const songAt = songSlot(song, loop, Math.max(0, Math.round(positionAt(e.currentTarget, e.clientY - r.top, pos))));
+  seek(Math.floor(songAt / per()) * per());
+};
+$('lane').onkeydown = e => {                                    // with the lane focused, the arrows jump a bar back or on
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  const bar = Math.floor(songSlot(song, loop, Math.floor(clock.now().pos)) / per());
+  seek(Math.min(song.bars.length - 1, Math.max(0, bar + step)) * per());
 };
 new ResizeObserver(redraw).observe($('lane'));
 document.fonts?.addEventListener?.('loadingdone', redraw);

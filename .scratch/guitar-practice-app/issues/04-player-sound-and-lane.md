@@ -13,10 +13,14 @@ The transport has back-to-start, play/pause (Space), tempo (dotted-quarter pulse
 
 **Blocked by:** 03 (Song screen)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tests: loops over the last bar wrap to the first; a chord-change loop covers the two chords; speed-up adds 5 bpm per loop
-- [ ] Sound, lane and count-in stay in step at 40 and 140 bpm (checked by ear and with the ?log trace)
-- [ ] Nothing renders while the player is hidden or paused and idle
-- [ ] Esc closes the Tools menu
-- [ ] A mid-song screenshot matches the Hum mockup's lane
+- [x] Tests: loops over the last bar wrap to the first; a chord-change loop covers the two chords; speed-up adds 5 bpm per loop
+- [x] Sound, lane and count-in stay in step at 40 and 140 bpm (checked by ear and with the ?log trace)
+- [x] Nothing renders while the player is hidden or paused and idle
+- [x] Esc closes the Tools menu
+- [x] A mid-song screenshot matches the Hum mockup's lane
+
+## Comments
+
+Done in 8a4f736, with review fixes in the following commit. Timing, measured with `node tools/trace.js` on Perfect: drawn strokes land 5–9 ms after their scheduled time (median), at most 32 ms, at both 40 and 140 bpm. That's within one or two frames. The by-ear check is still the user's. The chord-change loop runs from the start of the current chord's stretch through the end of the next chord's, so the change is always heard. The tempo range is 40–140 bpm. Until ticket 07 the whole-song loop repeats and speeds up each time round. URL flags for checks: `play=1`, `at=<bar>`, `tools=1`, `bpm=`, `go=1`, `log`.

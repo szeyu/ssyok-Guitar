@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MAX, sections, countIn, lyricLines } from '../app/src/engine/practice.js';
-import { slotAt } from '../app/src/engine/song.js';
+import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn } from '../app/src/engine/practice.js';
+import { slotAt, sections, lyricLines } from '../app/src/engine/song.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
   assert.equal(soundingName('G', 0), 'G');
@@ -84,11 +84,12 @@ test('a loop over the last bar wraps to the first', () => {
   assert.deepEqual([24, 31, 32, 39, 40, 47].map(s => barOf(four, loop, s)), [3, 3, 0, 0, 3, 3]);
 });
 
-test('a chord-change loop covers the two chords of the next change', () => {
+test('a chord-change loop runs from the start of the chord you are in through the next chord', () => {
   const s = { title: 'x', bpm: 80, bars: ['G', 'G', 'G', 'Em', 'C C'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
-  const loop = loopRange(s, 'change', 3);             // in bar 1: the next change is bar 3's G to bar 4's Em
-  assert.deepEqual(loop, { a: 16, b: 32 });
-  assert.deepEqual([...new Set([16, 23, 24, 31].map(i => slotAt(s, songSlot(s, loop, i)).chord))], ['G', 'Em']);
+  const loop = loopRange(s, 'change', 3);             // in bar 1: from bar 1 through bar 4's Em, the next chord
+  assert.deepEqual(loop, { a: 0, b: 32 });
+  assert.deepEqual([...new Set([0, 23, 24, 31].map(i => slotAt(s, songSlot(s, loop, i)).chord))], ['G', 'Em']);
+  assert.deepEqual(loopRange(s, 'change', 13), { a: 8, b: 32 });   // from bar 2, where the playhead is
   // inside a bar of two chords, the change is from the second half to what follows
   const half = { ...s, bars: [{ chord: 'C E7', strum: 'D.DU.UDU' }, { chord: 'Am', strum: 'D.DU.UDU' }] };
   assert.deepEqual(loopRange(half, 'change', 1), { a: 0, b: 8 });
@@ -104,6 +105,11 @@ test('speeding up adds 5 bpm each time a loop comes round, up to the top of the 
   assert.equal(speedUp(80), 85);
   assert.equal(speedUp(speedUp(80)), 90);
   assert.equal(speedUp(TEMPO_MAX), TEMPO_MAX);
+});
+
+test('the tempo range is 40 to 140, as the prototype has it', () => {
+  assert.deepEqual([TEMPO_MIN, TEMPO_MAX], [40, 140]);
+  assert.equal(speedUp(138), 140);
 });
 
 test('the sections along the top: where each starts and how many bars it runs', () => {

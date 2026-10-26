@@ -21,6 +21,9 @@ export const stringIndex = number => 6 - number;
 /** Eighth-note slots in one bar of the song: 8 in 4/4, 6 in 3/4 and 6/8. */
 export const slotsPerBar = song => (song.beats === 3 ? 3 : 4) * 2;
 
+/** Slots in one chord's stretch of bar n: several chords in a bar split it evenly. */
+export const stretchSlots = (song, n) => slotsPerBar(song) / barChords(song.bars[n]).length;
+
 /** A song file's problems as sentences for its author, naming the bar; empty when the song is valid. */
 export function validateSong(song) {
   const err = [];
@@ -135,7 +138,7 @@ export function slotAt(song, slot) {
   let hold = 1; while (tunes[i + hold] === '.') hold++;
   return {
     bar: n,
-    chord: chords[Math.floor(i * chords.length / per)],
+    chord: chords[Math.floor(i / stretchSlots(song, n))],
     stroke: strokeOf(bar, i, !!song.compound),
     count: song.compound ? '123456'[i] : COUNT[i],
     syllable: timed ? timed[i] : null,
@@ -148,4 +151,32 @@ export function slotAt(song, slot) {
 export function noteHz(name) {
   const [, letter, octave] = name.match(/^([A-G][#b]?)(\d)$/);
   return 440 * 2 ** ((NOTES.indexOf(ALIAS[letter] ?? letter) + 12 * (octave - 4) - 9) / 12);
+}
+
+/** The song's sections in order for the timeline: { name, bar, bars }. Bars before the first named section are "Start". */
+export function sections(song) {
+  const out = [];
+  song.bars.forEach((bar, n) => { if (!n || bar.section) out.push({ name: bar.section ?? 'Start', bar: n, bars: 0 }); out.at(-1).bars++; });
+  return out;
+}
+
+/** The words under the hit line at a song slot: now, the line being sung { chord, text, sung } (sung is the part of text sung so
+ *  far: timed words up to this slot, a plain line all at once), and next, the line after it { chord, text }; each null when there
+ *  is none. A plain line stays up for up to 8 bars until the next starts; timed words show only in their own bar. */
+export function lyricLines(song, slot) {
+  const per = slotsPerBar(song), n = Math.floor(slot / per), words = m => m < song.bars.length ? slotAt(song, m * per).lyric : '';
+  let from = n;
+  while (from > 0 && from > n - 8 && !words(from)) from--;
+  const shown = words(from) && (from === n || !song.bars[from].syllables);
+  let to = shown ? from + 1 : n + 1;
+  while (to < song.bars.length && to < n + 8 && !words(to)) to++;
+  const sung = () => {
+    if (!song.bars[from].syllables) return words(from);
+    const upTo = from === n ? slot % per : per - 1;
+    return Array.from({ length: upTo + 1 }, (_, i) => slotAt(song, from * per + i).syllable).filter(Boolean).reduce((a, x) => a + x + (x.endsWith('-') ? '' : ' '), '').trim();
+  };
+  return {
+    now: shown ? { chord: song.bars[from].chord, text: words(from), sung: sung() } : null,
+    next: words(to) ? { chord: song.bars[to].chord, text: words(to) } : null,
+  };
 }

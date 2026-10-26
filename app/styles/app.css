@@ -125,7 +125,7 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .ptitle { max-width: 30vw; padding: 4px 8px; background: none; box-shadow: none; font: 600 20px var(--serif); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .ptitle:hover { translate: none; color: var(--link) }
 .timeline { list-style: none; margin: 0; padding: 3px; display: flex; gap: 3px; min-width: 0; border-radius: 12px; background: var(--raise); box-shadow: inset 0 1px 2px var(--shade-1) }
-.timeline li { flex: 1 1 0; min-width: 0; display: flex }
+.timeline li { flex: 1 1 0; min-width: 52px; display: flex }   /* a short section still shows its first letters */
 .timeline button { position: relative; flex: 1; min-width: 0; height: 32px; padding: 0 8px; border-radius: 9px; background: none; box-shadow: none; color: var(--ink-2); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color .12s var(--ease-snap) }
 .timeline button:hover { translate: none; background: var(--panel) }
 .timeline button:active { translate: none }
@@ -149,6 +149,7 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .scene { position: absolute; inset: 8px; border-radius: 18px; background: radial-gradient(120% 90% at 30% 20%, var(--scene), var(--scene-2)); box-shadow: inset 0 2px 6px var(--shade-3) }
 .tag { position: absolute; top: 20px; left: 20px; padding: 4px 12px; border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600 }
 .laneSheet { display: grid; grid-template-rows: minmax(0, 1fr) auto }
+.lane:focus-visible { outline: 2px solid var(--link); outline-offset: 3px }
 .lane { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 18px; background: var(--grain), var(--lane); box-shadow: inset 0 2px 5px var(--lane-shade); cursor: pointer }
 .lyric { min-height: 80px; padding: 16px 8px 4px; text-align: center }
 .lyric p { margin: 0 }
@@ -187,4 +188,4 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
   .transport { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px }
 }
 
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } .timeline button.now::after { display: none } }
