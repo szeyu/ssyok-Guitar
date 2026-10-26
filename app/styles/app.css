@@ -116,4 +116,75 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 .pat .pass { opacity: .55 }
 .pat .accent { font-size: 27px }
 
+/* the player: top bar, the stage (3D views on the left, the lane on its kraft strip), the transport */
+.player { position: fixed; inset: 0; z-index: 1; display: grid; grid-template-rows: 64px minmax(0, 1fr) 80px; background: var(--grain), var(--bg) }
+.player[hidden] { display: none }
+.pbar { position: relative; z-index: 2; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: 0 24px 8px; background: var(--grain), var(--panel); filter: drop-shadow(0 2px 2px var(--shade-1));
+  clip-path: polygon(0 0, 100% 0, 100.0% calc(100% - 1.2px), 97.5% calc(100% - 0.5px), 95.0% calc(100% - 2.0px), 92.5% calc(100% - 0.8px), 90.0% calc(100% - 0.3px), 87.5% calc(100% - 2.0px), 85.0% calc(100% - 4.6px), 82.5% calc(100% - 4.0px), 80.0% calc(100% - 3.8px), 77.5% calc(100% - 1.1px), 75.0% calc(100% - 2.7px), 72.5% calc(100% - 1.4px), 70.0% calc(100% - 0.9px), 67.5% calc(100% - 0.5px), 65.0% calc(100% - 1.1px), 62.5% calc(100% - 4.6px), 60.0% calc(100% - 4.1px), 57.5% calc(100% - 4.0px), 55.0% calc(100% - 4.0px), 52.5% calc(100% - 1.0px), 50.0% calc(100% - 1.5px), 47.5% calc(100% - 3.1px), 45.0% calc(100% - 3.7px), 42.5% calc(100% - 4.3px), 40.0% calc(100% - 4.4px), 37.5% calc(100% - 0.4px), 35.0% calc(100% - 3.0px), 32.5% calc(100% - 3.4px), 30.0% calc(100% - 2.5px), 27.5% calc(100% - 0.9px), 25.0% calc(100% - 2.4px), 22.5% calc(100% - 0.4px), 20.0% calc(100% - 4.7px), 17.5% calc(100% - 4.3px), 15.0% calc(100% - 2.7px), 12.5% calc(100% - 1.5px), 10.0% calc(100% - 4.5px), 7.5% calc(100% - 2.9px), 5.0% calc(100% - 4.4px), 2.5% calc(100% - 4.2px), 0.0% calc(100% - 2.5px)); }
+.pbar .ghost { font-size: 13px }
+.ptitle { max-width: 30vw; padding: 4px 8px; background: none; box-shadow: none; font: 600 20px var(--serif); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.ptitle:hover { translate: none; color: var(--link) }
+.timeline { list-style: none; margin: 0; padding: 3px; display: flex; gap: 3px; min-width: 0; border-radius: 12px; background: var(--raise); box-shadow: inset 0 1px 2px var(--shade-1) }
+.timeline li { flex: 1 1 0; min-width: 0; display: flex }
+.timeline button { position: relative; flex: 1; min-width: 0; height: 32px; padding: 0 8px; border-radius: 9px; background: none; box-shadow: none; color: var(--ink-2); font-size: 12px; font-weight: 500; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background-color .12s var(--ease-snap) }
+.timeline button:hover { translate: none; background: var(--panel) }
+.timeline button:active { translate: none }
+.timeline button.past { color: var(--mute); background: var(--mint-wash) }
+.timeline button.now { background: var(--ink); color: var(--bg); font-weight: 600 }
+.timeline button.now::after { content: ''; position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: var(--brass); border-radius: 0 4px 4px 0; transform-origin: left; scale: var(--through, 0) 1 }
+#toolsBtn[aria-expanded=true] { background: var(--ink); color: var(--bg); --edge-c: var(--ink-2) }
+
+.tools { position: absolute; top: 62px; right: 16px; z-index: 5; width: 300px; padding: 12px; display: grid; gap: 4px; background: var(--grain), var(--panel); border-radius: 20px; box-shadow: inset 0 0 0 1px var(--line), var(--shadow-card), 0 24px 50px -20px var(--shade-3) }
+.tools[hidden] { display: none }
+.tools button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; border-radius: 12px; text-align: left; background: none; box-shadow: none }
+.tools button:hover { translate: none; background: var(--raise) }
+.tools button:active { translate: none }
+.tools small { display: block; color: var(--mute); font-size: 12px; font-weight: 500 }
+.tools button::after { content: ''; flex: none; width: 32px; height: 18px; border-radius: 9px; background: radial-gradient(circle at 9px 50%, var(--mute) 6px, var(--line) 6.5px) }
+.tools button[aria-pressed=true]::after { background: radial-gradient(circle at 23px 50%, var(--brass-ink) 6px, var(--brass) 6.5px) }
+
+.stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; min-height: 0; padding: 16px 16px 12px }
+.views { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0 }
+.view, .laneSheet { position: relative; min-height: 0; padding: 8px; border-radius: 22px; background: var(--grain), var(--panel); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line) }
+.scene { position: absolute; inset: 8px; border-radius: 18px; background: radial-gradient(120% 90% at 30% 20%, var(--scene), var(--scene-2)); box-shadow: inset 0 2px 6px var(--shade-3) }
+.tag { position: absolute; top: 20px; left: 20px; padding: 4px 12px; border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600 }
+.laneSheet { display: grid; grid-template-rows: minmax(0, 1fr) auto }
+.lane { display: block; width: 100%; height: 100%; min-height: 0; border-radius: 18px; background: var(--grain), var(--lane); box-shadow: inset 0 2px 5px var(--lane-shade); cursor: pointer }
+.lyric { min-height: 80px; padding: 16px 8px 4px; text-align: center }
+.lyric p { margin: 0 }
+#lyricNow { font: 600 21px/1.25 var(--serif); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+#lyricNow mark { margin-right: 8px; padding: 0 8px; border-radius: 6px; background: var(--brass); color: inherit }
+#lyricNow .unsung { color: var(--mute) }
+.lyric .nx { margin-top: 4px; font-size: 13px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.lyric .nx b { color: var(--ink) }
+
+.transport { display: flex; align-items: center; gap: 24px; padding: 0 24px; white-space: nowrap; background: var(--grain), var(--raise); border-top: 1px solid var(--line) }
+.iconBtn { display: grid; place-items: center; width: 40px; height: 40px; padding: 0 }
+.iconBtn svg, .playBtn svg { width: 18px; height: 18px; fill: currentColor }
+.playBtn { --edge: 5px; --edge-c: var(--brass-deep); display: grid; place-items: center; width: 56px; height: 52px; padding: 0; border-radius: 18px; background: var(--grain), var(--brass); color: var(--brass-ink); box-shadow: inset 0 1px 0 var(--fringe), 0 var(--edge) 0 0 var(--edge-c), 2px 9px 10px -3px var(--shade-2); transition-timing-function: var(--ease-spring) }
+.playBtn:hover { --edge: 7px }
+.playBtn svg { width: 22px; height: 22px }
+.ctl { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 500; color: var(--ink-2) }
+.bpm { min-width: 2ch; font: 600 26px var(--serif); color: var(--ink); font-variant-numeric: tabular-nums }
+.ctl .hint { font-size: 12px; margin-left: -4px }
+#tempo { appearance: none; width: 140px; height: 24px; background: transparent; cursor: pointer }
+#tempo::-webkit-slider-runnable-track { height: 8px; border-radius: 8px; background: linear-gradient(90deg, var(--brass-deep) 0 var(--fill, 50%), var(--deep) var(--fill, 50%)); box-shadow: inset 0 1px 2px var(--shade-1) }
+#tempo::-webkit-slider-thumb { appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 999px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 0 var(--rim) }
+#tempo::-moz-range-track { height: 8px; border-radius: 8px; background: var(--deep) }
+#tempo::-moz-range-progress { height: 8px; border-radius: 8px; background: var(--brass-deep) }
+#tempo::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 999px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 0 var(--rim) }
+input:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 8px }
+.pills.wide button { width: auto; height: 32px; padding: 0 16px; font-size: 13px; font-weight: 500 }
+.pills button[aria-pressed=true] { background: var(--ink); color: var(--bg); font-weight: 600 }
+.keys { margin: 0 0 0 auto; font-size: 12px; color: var(--mute) }
+kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-right: 4px; padding: 0 8px; border-radius: 7px; font: 600 12px var(--ui); color: var(--ink-2); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), 0 2px 0 0 var(--rim) }
+
+@media (max-width: 900px) {
+  .player { grid-template-rows: 56px minmax(0, 1fr) auto }
+  .pbar { gap: 12px; padding-inline: 12px }
+  .timeline, .keys, .ctl .hint { display: none }
+  .stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.5fr) }
+  .transport { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px }
+}
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }

@@ -42,7 +42,7 @@
       <h2>The strum</h2>
       <div id="strums" class="strums"></div>
       <h2>Start</h2>
-      <!-- ponytail: the Start choices and links lead to screens later tickets build (player 04, strum steps 06, whole-song sheet and builder 09); no-ops until then -->
+      <!-- ponytail: Learn the strum and the links lead to screens later tickets build (strum steps 06, whole-song sheet and builder 09); no-ops until then -->
       <div class="ways">
         <button id="goSteps" type="button"><i>1</i><b>Learn the strum</b><span>Step by step, slowly, over the first chords</span></button>
         <button id="goSlow" type="button"><i>2</i><b>Play it slowly</b><span id="slowNote"></span></button>
@@ -51,6 +51,36 @@
       <div class="links"><button id="whole" class="ghost" type="button">Whole song</button><button id="edit" class="ghost" type="button">Edit song</button></div>
     </div>
   </div>
+</section>
+
+<section id="player" class="player" aria-label="Player" hidden>
+  <header class="pbar">
+    <button id="playerHome" class="ghost" type="button">Songs</button>
+    <button id="playerSong" class="ptitle" type="button" title="Chords and capo for this song"></button>
+    <ol id="timeline" class="timeline" aria-label="Sections, click one to jump to it"></ol>
+    <button id="toolsBtn" type="button" aria-expanded="false" aria-controls="tools">Tools</button>
+  </header>
+  <div id="tools" class="tools" role="group" aria-label="Tools" hidden>
+    <button id="melody" type="button" aria-pressed="true"><span>Melody<small>Plays the tune over the chords, for songs that have one</small></span></button>
+    <button id="ramp" type="button" aria-pressed="false"><span>Speed up each loop<small>Adds 5 bpm every time a loop comes round</small></span></button>
+  </div>
+  <div class="stage">
+    <div class="views">
+      <div class="view"><div class="scene"></div><span class="tag">Fretting hand</span></div>
+      <div class="view"><div class="scene"></div><span class="tag">Strumming hand</span></div>
+    </div>
+    <div class="laneSheet">
+      <canvas id="lane" class="lane" title="Click a bar to jump to it">The strum lane: strokes fall to the hit line.</canvas>
+      <div class="lyric"><p id="lyricNow"></p><p id="lyricNext" class="nx"></p></div>
+    </div>
+  </div>
+  <footer class="transport">
+    <button id="reset" class="iconBtn" type="button" aria-label="Back to the start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg></button>
+    <button id="play" class="playBtn" type="button" aria-label="Play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg></button>
+    <label class="ctl">Tempo <input id="tempo" type="range" step="1"> <output id="bpm" class="bpm" for="tempo"></output><small id="pulse" class="hint" hidden>dotted-quarter beats</small></label>
+    <div class="ctl" role="group" aria-label="Loop">Loop <div id="loop" class="pills wide"></div></div>
+    <p class="keys"><kbd>Space</kbd> play</p>
+  </footer>
 </section>
 </body>
 </html>

@@ -125,13 +125,14 @@ function strokeOf(bar, i, compound) {
  *   count     the count label: 1 & 2 & ..., or 1 to 6 in 6/8
  *   syllable  the word sung on this slot in a timed bar ('' when nothing is sung there), null when the bar is not timed
  *   lyric     the bar's words as one line, '' when it has none
- *   note      the melody note starting on this slot, { name, hz }, or null
+ *   note      the melody note starting on this slot, { name, hz, slots } (slots: how long it holds), or null
  */
 export function slotAt(song, slot) {
   const per = slotsPerBar(song), n = Math.floor(slot / per), i = slot % per, bar = song.bars[n];
   const chords = barChords(bar);
   const timed = bar.syllables ? words(bar.syllables).map(x => x === '.' ? '' : x) : null;
-  const tune = bar.tune ? words(bar.tune)[i] : '.';
+  const tunes = bar.tune ? words(bar.tune) : [], tune = tunes[i] ?? '.';
+  let hold = 1; while (tunes[i + hold] === '.') hold++;
   return {
     bar: n,
     chord: chords[Math.floor(i * chords.length / per)],
@@ -139,7 +140,7 @@ export function slotAt(song, slot) {
     count: song.compound ? '123456'[i] : COUNT[i],
     syllable: timed ? timed[i] : null,
     lyric: timed ? timed.filter(Boolean).reduce((a, x) => a + x + (x.endsWith('-') ? '' : ' '), '').trim() : bar.lyric ?? '',
-    note: /^[A-G]/.test(tune) ? { name: tune, hz: noteHz(tune) } : null,
+    note: /^[A-G]/.test(tune) ? { name: tune, hz: noteHz(tune), slots: hold } : null,
   };
 }
 

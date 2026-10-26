@@ -14,8 +14,8 @@ const STATES = [
   { name: 'library', path: 'app/', size: [1280, 800] },
   { name: 'library-narrow', path: 'app/', size: [390, 844] },
   { name: 'song', path: 'app/?song=2', size: [1280, 800] },
-  { name: 'player-mid-song', path: null, size: [1280, 800], skip: 'ticket 04 adds its URL' },
-  { name: 'tools', path: null, size: [1280, 800], skip: 'ticket 04 adds its URL' },
+  { name: 'player-mid-song', path: 'app/?song=2&play=1&at=7', size: [1280, 800] },
+  { name: 'tools', path: 'app/?song=2&play=1&at=7&tools=1', size: [1280, 800] },
   { name: 'results', path: null, size: [1280, 800], skip: 'ticket 07 adds its URL' },
 ];
 

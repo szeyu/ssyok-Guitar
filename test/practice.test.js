@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm, capoOf } from '../app/src/engine/practice.js';
+import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MAX, sections, countIn, lyricLines } from '../app/src/engine/practice.js';
+import { slotAt } from '../app/src/engine/song.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
   assert.equal(soundingName('G', 0), 'G');
@@ -67,4 +68,64 @@ test("the capo is the one you chose, else the song's, else none", () => {
   assert.equal(capoOf({ capo: 2 }, 0), 0);
   assert.equal(capoOf({ capo: 2 }, undefined), 2);
   assert.equal(capoOf({}, undefined), 0);
+});
+
+// four bars of 4/4, eight slots each: G Em C D
+const four = { title: 'x', bpm: 80, bars: ['G', 'Em', 'C', 'D'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
+const barOf = (song, loop, slot) => slotAt(song, songSlot(song, loop, slot)).bar;
+
+test('a whole-song loop and a one-bar loop', () => {
+  assert.deepEqual(loopRange(four, 'song', 13), { a: 0, b: 32 });
+  assert.deepEqual(loopRange(four, 'bar', 13), { a: 8, b: 16 });
+});
+
+test('a loop over the last bar wraps to the first', () => {
+  const loop = loopRange(four, 'change', 26);         // in the last bar: the change is D back round to G
+  assert.deepEqual([24, 31, 32, 39, 40, 47].map(s => barOf(four, loop, s)), [3, 3, 0, 0, 3, 3]);
+});
+
+test('a chord-change loop covers the two chords of the next change', () => {
+  const s = { title: 'x', bpm: 80, bars: ['G', 'G', 'G', 'Em', 'C C'].map(chord => ({ chord, strum: 'D.DU.UDU' })) };
+  const loop = loopRange(s, 'change', 3);             // in bar 1: the next change is bar 3's G to bar 4's Em
+  assert.deepEqual(loop, { a: 16, b: 32 });
+  assert.deepEqual([...new Set([16, 23, 24, 31].map(i => slotAt(s, songSlot(s, loop, i)).chord))], ['G', 'Em']);
+  // inside a bar of two chords, the change is from the second half to what follows
+  const half = { ...s, bars: [{ chord: 'C E7', strum: 'D.DU.UDU' }, { chord: 'Am', strum: 'D.DU.UDU' }] };
+  assert.deepEqual(loopRange(half, 'change', 1), { a: 0, b: 8 });
+  assert.deepEqual(loopRange(half, 'change', 5), { a: 4, b: 16 });
+});
+
+test('a song of one chord loops its bar and the next for a chord change', () => {
+  const one = { title: 'x', bpm: 80, bars: [{ chord: 'G', strum: 'D.DU.UDU' }, { chord: 'G', strum: 'D.DU.UDU' }] };
+  assert.deepEqual(loopRange(one, 'change', 9), { a: 8, b: 24 });
+});
+
+test('speeding up adds 5 bpm each time a loop comes round, up to the top of the tempo range', () => {
+  assert.equal(speedUp(80), 85);
+  assert.equal(speedUp(speedUp(80)), 90);
+  assert.equal(speedUp(TEMPO_MAX), TEMPO_MAX);
+});
+
+test('the sections along the top: where each starts and how many bars it runs', () => {
+  const s = { title: 'x', bpm: 80, bars: [{}, { section: 'Verse' }, {}, {}, { section: 'Chorus' }].map(b => ({ chord: 'G', strum: 'D.DU.UDU', ...b })) };
+  assert.deepEqual(sections(s), [{ name: 'Start', bar: 0, bars: 1 }, { name: 'Verse', bar: 1, bars: 3 }, { name: 'Chorus', bar: 4, bars: 1 }]);
+});
+
+test('the count-in is one bar of the pulse: four in 4/4, three in 3/4, two dotted quarters in 6/8', () => {
+  assert.deepEqual(countIn(four), { pulses: 4, slots: 2 });
+  assert.deepEqual(countIn({ beats: 3 }), { pulses: 3, slots: 2 });
+  assert.deepEqual(countIn({ beats: 3, compound: true }), { pulses: 2, slots: 3 });
+});
+
+test('the words under the line: a plain line stays up until the next, and shows the next line with its chord', () => {
+  const s = { title: 'x', bpm: 80, bars: [{ lyric: 'one two' }, {}, { chord: 'C', lyric: 'three' }, {}].map(b => ({ chord: 'G', strum: 'D.DU.UDU', ...b })) };
+  assert.deepEqual(lyricLines(s, 9), { now: { chord: 'G', text: 'one two', sung: 'one two' }, next: { chord: 'C', text: 'three' } });
+  assert.deepEqual(lyricLines(s, 30), { now: { chord: 'C', text: 'three', sung: 'three' }, next: null });
+});
+
+test('timed words light up as they are sung, and belong to their own bar only', () => {
+  const s = { title: 'x', bpm: 80, beats: 3, bars: [{ syllables: 'Hap- py birth- day to .' }, {}, { lyric: 'you' }].map(b => ({ chord: 'G', strum: 'D.DUDU', ...b })) };
+  assert.deepEqual(lyricLines(s, 0).now, { chord: 'G', text: 'Hap-py birth-day to', sung: 'Hap-' });
+  assert.equal(lyricLines(s, 3).now.sung, 'Hap-py birth-day');
+  assert.deepEqual(lyricLines(s, 7), { now: null, next: { chord: 'G', text: 'you' } });
 });

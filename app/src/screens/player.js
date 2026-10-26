@@ -1,0 +1,168 @@
+// The player: the top bar with the song and its section timeline, the Tools menu, the stage (the 3D views come in ticket 05,
+// the strum lane), and the transport. One clock drives the sound, the lane and the count-in; nothing is drawn while the
+// player is hidden, or while it is paused with nothing changing.
+import { slotAt, slotsPerBar } from '../engine/song.js';
+import { voicing } from '../engine/chords.js';
+import { loopRange, songSlot, speedUp, sections, countIn, lyricLines, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { createClock, audioContext } from '../audio/clock.js';
+import { createSynth } from '../audio/synth.js';
+import { drawLane, positionAt } from '../views/lane.js';
+import { el } from '../views/dom.js';
+import { showScreen, onScreen, screenShowing } from './shell.js';
+
+const $ = id => document.getElementById(id);
+const LOG = new URLSearchParams(location.search).has('log');   // ?log: a trace of when each slot is scheduled and when it is drawn
+const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z', pause: 'M6 4h4.5v16H6zM13.5 4H18v16h-4.5z' };
+const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
+
+let song, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
+let drawn = { slot: -1, words: '' };
+const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
+const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
+const per = () => slotsPerBar(song);
+const fretsOf = chord => voicing(song, chord, picks).frets;
+
+const clock = createClock({
+  play(slot, t, counting) {
+    const { pulses, slots } = countIn(song);
+    if (counting) { if ((start - slot) % slots === 0) synth.click(t, start - slot === pulses * slots); return; }
+    const x = slotAt(song, songSlot(song, loop, slot)), si = songSlot(song, loop, slot) % per(), k = x.stroke;
+    if (LOG) { scheduled.set(slot, t); console.log(`PLAY slot=${slot} at=${t.toFixed(3)} bar=${x.bar + 1} count=${x.count} chord=${x.chord} bpm=${bpm}`); }
+    if (si % slots === 0) synth.click(t, si === 0);
+    if (melody && x.note) synth.sing(x.note.hz * 2 ** (capo / 12), t, x.note.slots / rate());
+    if (!k.hit) return;
+    if (k.chuck) return synth.chuck(t);
+    const fr = fretsOf(x.chord), up = f => f < 0 ? -1 : f + capo;
+    if (k.pluck) return synth.pick(k.pluck.map(s => ({ s, fret: up(k.fret[s] ?? fr[s]) })).filter(n => n.fret >= 0), t);
+    synth.strum(fr.map(up), k.dir, k.accent, t);
+  },
+  lap() { if (ramp) showTempo(speedUp(bpm)); return rate(); },  // a loop comes round: a little faster if asked (the clock takes the new rate from here)
+});
+
+// ---- drawing: one frame at a time, only while something changes ----
+function redraw() { if (!raf) raf = requestAnimationFrame(frame); }
+function frame() {
+  raf = 0;
+  if (screenShowing() !== 'player') return;
+  clock.tick();
+  const { pos, countLeft } = clock.now();
+  drawLane($('lane'), { song, loop, pos, countLeft, frets: fretsOf });
+  const slot = Math.floor(pos), at = songSlot(song, loop, slot);
+  if (LOG && clock.playing && !countLeft && slot !== drawn.slot && scheduled.has(slot)) {
+    const ctx = audioContext(), heard = ctx.currentTime - (ctx.outputLatency || ctx.baseLatency || 0), late = (heard - scheduled.get(slot)) * 1000;
+    console.log(`DRAW slot=${slot} at=${heard.toFixed(3)} scheduled=${scheduled.get(slot).toFixed(3)} late=${late.toFixed(1)}ms bpm=${bpm}`);
+    scheduled.delete(slot);
+  }
+  if (!countLeft) drawn.slot = slot;
+  showWhere(at);
+  if (clock.playing) raf = requestAnimationFrame(frame);
+  else if (LOG) console.log('IDLE: the frame loop stops until something changes');
+}
+
+// the section timeline and the words follow the position; the DOM changes only when what they show does
+function showWhere(at) {
+  const bar = Math.floor(at / per()), all = sections(song), j = all.findLastIndex(s => s.bar <= bar), sec = all[j];
+  [...$('timeline').children].forEach((li, i) => {
+    const b = li.firstChild;
+    b.classList.toggle('past', i < j); b.classList.toggle('now', i === j);
+    if (i === j) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+  });
+  $('timeline').style.setProperty('--through', ((at / per() - sec.bar) / sec.bars).toFixed(3));
+  const { now, next } = lyricLines(song, at), key = JSON.stringify([now, next]);
+  if (key === drawn.words) return;
+  drawn.words = key;
+  $('lyricNow').replaceChildren(...now ? [el('mark', { textContent: now.chord }), el('span', { textContent: now.sung }), el('span', { className: 'unsung', textContent: now.text.slice(now.sung.length) })] : []);
+  $('lyricNext').replaceChildren(...next ? ['next: ', el('b', { textContent: next.chord }), ' ' + next.text] : []);
+}
+
+// ---- the transport ----
+function showTempo(v) {
+  bpm = Math.round(Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, v)));
+  $('tempo').value = bpm; $('bpm').textContent = bpm;
+  $('tempo').style.setProperty('--fill', `${100 * (bpm - TEMPO_MIN) / (TEMPO_MAX - TEMPO_MIN)}%`);
+}
+function setTempo(v) { showTempo(v); clock.setRate(rate()); }
+
+function setLoop(k) {
+  kind = k;
+  const { pos } = clock.now(), at = songSlot(song, loop, Math.floor(pos));
+  loop = loopRange(song, kind, at); clock.setLoop(loop);
+  if (Math.floor(pos) !== at) clock.seek(at + pos % 1);       // the position had run on past the song's end inside a loop
+  $('loop').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === kind)));
+  redraw();
+}
+
+/** Jumps to a song slot. The loop follows: a bar or chord-change loop is chosen again where you land. */
+function seek(slot) {
+  loop = loopRange(song, kind, slot); clock.setLoop(loop); clock.seek(slot);
+  redraw();
+}
+
+function togglePlay() {
+  if (clock.playing) { clock.stop(); synth.volume(false); }
+  else {
+    const ctx = audioContext(); ctx.resume();
+    synth ??= createSynth(ctx); synth.volume(true);
+    const { pulses, slots } = countIn(song);
+    start = Math.floor(clock.now().pos);
+    clock.setLoop(loop); clock.start(start, rate(), pulses * slots);
+  }
+  const on = clock.playing;
+  $('play').setAttribute('aria-label', on ? 'Pause' : 'Play');
+  $('play').querySelector('path').setAttribute('d', on ? ICON.pause : ICON.play);
+  redraw();
+}
+
+function toggleTools(open = $('tools').hidden) {
+  $('tools').hidden = !open; $('toolsBtn').setAttribute('aria-expanded', String(open));
+}
+const toggle = (id, on) => $(id).setAttribute('aria-pressed', String(on));
+
+/** Opens the player for a song with your fingering picks and capo, at a tempo, at a bar (0 = the start), paused or playing. */
+export function openPlayer(s, { picks: p = {}, capo: c = 0, tempo = s.bpm, bar = 0, play = false } = {}) {
+  if (clock.playing) togglePlay();
+  song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '' };
+  $('playerSong').textContent = song.title;
+  $('timeline').replaceChildren(...sections(song).map(sec => el('li', { style: `flex-grow:${Math.max(sec.bars, song.bars.length / 24)}` },   // a short section stays readable
+    el('button', { type: 'button', textContent: sec.name, title: `${sec.name}, bar ${sec.bar + 1}`, onclick: () => seek(sec.bar * per()) }))));
+  $('pulse').hidden = !song.compound;
+  const bars = Math.min(song.bars.length - 1, Math.max(0, bar));
+  loop = loopRange(song, kind, bars * per()); clock.setLoop(loop); clock.seek(bars * per());
+  setTempo(tempo); setLoop('song');
+  showScreen('player');
+  if (play) togglePlay();
+  redraw();
+}
+
+/** Opens or closes the Tools menu. */
+export const openTools = open => toggleTools(open);
+
+$('play').onclick = togglePlay;
+$('reset').onclick = () => seek(0);
+$('tempo').min = TEMPO_MIN; $('tempo').max = TEMPO_MAX;
+$('tempo').oninput = e => setTempo(+e.target.value);
+$('loop').replaceChildren(...LOOPS.map(([k, label]) => el('button', { type: 'button', textContent: label, onclick: () => setLoop(k) })));
+$('loop').querySelectorAll('button').forEach((b, i) => { b.dataset.kind = LOOPS[i][0]; });
+$('toolsBtn').onclick = () => toggleTools();
+$('melody').onclick = () => toggle('melody', melody = !melody);
+$('ramp').onclick = () => toggle('ramp', ramp = !ramp);
+$('playerHome').onclick = () => showScreen('library');
+$('playerSong').onclick = () => showScreen('song');
+$('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer
+  const { pos } = clock.now(), r = e.currentTarget.getBoundingClientRect();
+  const at = songSlot(song, loop, Math.max(0, Math.round(positionAt(e.currentTarget, e.clientY - r.top, pos))));
+  seek(Math.floor(at / per()) * per());
+};
+new ResizeObserver(redraw).observe($('lane'));
+document.fonts?.addEventListener?.('loadingdone', redraw);
+
+onScreen('player', {
+  esc() { if (!$('tools').hidden) toggleTools(false); else showScreen('song'); },   // Esc closes Tools before it closes the player
+  leave() { if (clock.playing) togglePlay(); toggleTools(false); },
+});
+addEventListener('keydown', e => {
+  if (e.key !== ' ' || screenShowing() !== 'player' || e.target.matches('input:not([type=range]), textarea')) return;
+  e.preventDefault();                                           // Space plays and pauses, and does not also press the focused button
+  if (!e.repeat) togglePlay();
+});
+addEventListener('keyup', e => { if (e.key === ' ' && screenShowing() === 'player') e.preventDefault(); });

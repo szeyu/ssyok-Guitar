@@ -5,6 +5,8 @@ import { chordsUsed, chordShapes, voicingIndex, voicing, easiestFingerings, shap
 import { soundingName, strumSummary, slowBpm, capoOf } from '../engine/practice.js';
 import { chordBox } from '../views/chordbox.js';
 import { el, strumRow } from '../views/dom.js';
+import { openPlayer } from './player.js';
+import { showScreen, onScreen } from './shell.js';
 const $ = id => document.getElementById(id), paren = t => t && ` (${t})`;
 const SUGGEST = 'Suggest easiest fingerings', SHOWN_STRUMS = 3;
 
@@ -24,8 +26,16 @@ export function showSong(s) {
   $('playNote').textContent = `Full speed, ${song.bpm} bpm`;
   $('suggest').textContent = SUGGEST;
   $('suggest').onclick = () => { Object.assign(picks, easiestFingerings(song)); renderChords(); $('suggest').textContent = 'Using the fingerings that move least'; };
+  $('goSlow').onclick = () => playSong({ tempo: slowBpm(song), play: true });
+  $('goPlay').onclick = () => playSong({ tempo: song.bpm, play: true });
   renderChords(); renderCapo(); renderStrums();
 }
+
+onScreen('song', { esc: () => closePicker() || showScreen('library') });
+document.getElementById('songBack').onclick = () => showScreen('library');
+
+/** Opens the player on the song showing, with its fingering picks and capo. Options as openPlayer's. */
+export const playSong = options => openPlayer(song, { picks, capo: capoOf(song, capoBy.get(song.title)), ...options });
 
 /** Opens the picker of fingerings for one of the song's chords; '' closes it. */
 export function openPicker(name) { pickerFor = chordsUsed(song).includes(name) ? name : ''; renderChords(); }

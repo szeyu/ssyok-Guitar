@@ -107,6 +107,12 @@ test('a melody note is heard where it starts, not where it holds', () => {
   assert.equal(slotAt(s, 0).note.hz, 440);
 });
 
+test('a melody note holds over the . after it, to the end of its bar at most', () => {
+  const s = song({ bars: [{ chord: 'G', strum: 'D.DU.UDU', tune: 'A4 . _ G4 . . . .' }] });
+  assert.equal(slotAt(s, 0).note.slots, 2);
+  assert.equal(slotAt(s, 3).note.slots, 5);
+});
+
 test('the chords a song uses, once each, in order', () => {
   assert.deepEqual(chordsUsed(song({ bars: [{ chord: 'G' }, { chord: 'C E7' }, { chord: 'G' }] })), ['G', 'C', 'E7']);
 });
