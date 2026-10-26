@@ -3,8 +3,8 @@
 import { CHORDS } from './chords.js';
 
 const COUNT = ['1', '&', '2', '&', '3', '&', '4', '&'];
-const NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
-const ALIAS = { Db: 'C#', 'D#': 'Eb', Gb: 'F#', 'G#': 'Ab', 'A#': 'Bb' };
+export const NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+export const ALIAS = { Db: 'C#', 'D#': 'Eb', Gb: 'F#', 'G#': 'Ab', 'A#': 'Bb' };
 const whole = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 const words = s => s.trim().split(/\s+/);
 
@@ -60,6 +60,10 @@ export function validateSong(song) {
   });
   return err;
 }
+
+/** The song in one line, as the library card and song screen show it: tempo, capo, time, bars, and whether it has a melody or words. */
+export const songMeta = song => [`${song.bpm} bpm`, song.capo ? `capo on fret ${song.capo}` : 'no capo', song.compound ? '6/8 time' : song.beats === 3 ? '3/4 time' : '4/4 time', `${song.bars.length} bars`,
+  hasMelody(song) ? 'melody' : '', hasLyrics(song) ? 'lyrics' : ''].filter(Boolean).join(', ');
 
 /** Whether any bar has a melody line to sing or hear. */
 export const hasMelody = song => song.bars.some(bar => bar.tune);

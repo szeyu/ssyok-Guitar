@@ -17,5 +17,40 @@
   <div id="songBox"></div>
   <div class="fileNote hint" id="fileNote"></div>
 </section>
+
+<section id="songScreen" class="screen" hidden>
+  <header class="prepHead">
+    <div>
+      <button id="songBack" class="ghost back" type="button">Songs</button>
+      <h1 id="songTitle"></h1>
+      <p id="songMeta" class="meta"></p>
+    </div>
+    <div class="capo">
+      <div class="capoRow" role="group" aria-label="Capo fret"><span>Capo</span><div id="capo" class="pills"></div></div>
+      <p id="capoNote" class="hint"></p>
+    </div>
+  </header>
+  <div class="prepGrid">
+    <div>
+      <h2>Chords you need</h2>
+      <div id="voicings"></div>
+      <div id="picker" hidden></div>
+      <div class="legend"><span><b class="f1">1</b>index</span><span><b class="f2">2</b>middle</span><span><b class="f3">3</b>ring</span><span><b class="f4">4</b>pinky</span>
+        <button id="suggest" class="ghost" type="button" title="Picks the fingerings that move your fingers least between this song's chords">Suggest easiest fingerings</button></div>
+    </div>
+    <div>
+      <h2>The strum</h2>
+      <div id="strums" class="strums"></div>
+      <h2>Start</h2>
+      <!-- ponytail: the Start choices and links lead to screens later tickets build (player 04, strum steps 06, whole-song sheet and builder 09); no-ops until then -->
+      <div class="ways">
+        <button id="goSteps" type="button"><i>1</i><b>Learn the strum</b><span>Step by step, slowly, over the first chords</span></button>
+        <button id="goSlow" type="button"><i>2</i><b>Play it slowly</b><span id="slowNote"></span></button>
+        <button id="goPlay" type="button" class="main"><i>3</i><b>Play along</b><span id="playNote"></span></button>
+      </div>
+      <div class="links"><button id="whole" class="ghost" type="button">Whole song</button><button id="edit" class="ghost" type="button">Edit song</button></div>
+    </div>
+  </div>
+</section>
 </body>
 </html>
