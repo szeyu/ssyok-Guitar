@@ -6,8 +6,12 @@
 
 **Status:** ready-for-agent
 
-- [ ] The skill has a description that triggers on adding, converting or fixing a song
-- [ ] The format reference matches what the engine validates today: strum, pluck with string:fret and +, mixed bars, multi-chord bars, the chords block, sections, lyrics, syllables, tune, compound 6/8
-- [ ] The template writes a valid song file when run, one bar call per line
-- [ ] The skill tells the agent to run the song-file test before handing back, and to list what the format could not express
-- [ ] A fresh agent given only the skill and a short chart produces a song file that passes the test
+- [x] The skill has a description that triggers on adding, converting or fixing a song
+- [x] The format reference matches what the engine validates today: strum, pluck with string:fret and +, mixed bars, multi-chord bars, the chords block, sections, lyrics, syllables, tune, compound 6/8
+- [x] The template writes a valid song file when run, one bar call per line
+- [x] The skill tells the agent to run the song-file test before handing back, and to list what the format could not express
+- [x] A fresh agent given only the skill and a short chart produces a song file that passes the test
+
+## Comments
+
+Done in 03ce467. A fresh agent given only the skill and an Amazing Grace chart (public domain, 3/4) produced a song file that passed `node --test test/songs.test.js`; its notes (a two-chord bar splits by slot in 3/4; ask when a chart's bar count looks off) were folded into the skill. The trial song was removed.

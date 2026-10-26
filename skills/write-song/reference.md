@@ -18,8 +18,8 @@ A 12/8 bar is two 6/8 bars. A 2/4 bar has no grid of its own: join pairs of 2/4 
 
 | Field | Value |
 | --- | --- |
-| `title` | Required text, unique among the songs (two versions of a song need distinct titles). |
-| `bpm` | Required whole number, 40 to 200: the beat you count. In 4/4 and 3/4 that is quarter notes a minute. In 6/8 it is the dotted-quarter pulse (1 and 4); the app plays a 6/8 song at bpm × 1.5 quarter notes a minute, so one eighth lasts 60 / bpm / 3 seconds. A chart giving ♪ = 180 in 6/8 is `bpm: 60`; a chart giving ♩ = 90 in 6/8 is `bpm: 60` too. |
+| `title` | Required text. Unique among the songs, two versions of a song included (e.g. "Song (fingerstyle)"). Neither `validateSong` nor the test checks this: when songs load, a file repeating a loaded title is skipped with a note. A silent trap: check the titles in `app/songs/` by hand. |
+| `bpm` | Required whole number, 40 to 200: the beat you count. In 4/4 and 3/4 that is quarter notes a minute. In 6/8 it is the dotted-quarter pulse (1 and 4): a 6/8 `bpm` means bpm × 1.5 quarter notes a minute, one eighth lasting 60 / bpm / 3 seconds. A chart giving ♪ = 180 in 6/8 is `bpm: 60`; a chart giving ♩ = 90 in 6/8 is `bpm: 60` too. |
 | `capo` | Optional whole number, 0 to 7. Chord names and frets are the shapes played above the capo. |
 | `beats` | Optional, 3 or 4. Default 4. |
 | `compound` | Optional `true` for 6/8; needs `beats: 3`. Leave out otherwise. |
@@ -42,8 +42,8 @@ Every bar has a `chord` and at least one of `strum` or `pluck`.
 
 ### chord
 
-- Every name must be in the library (`CHORDS` in `app/src/engine/chords.js`: today `G Em C D Dm Am E A F`) or in the song's `chords` block.
-- Several names split the bar evenly: `"C E7"` in 4/4 is C on slots 1–4, E7 on 5–8. The number of names must divide the slot count: 1, 2, 4 (or 8) in 4/4; 1, 2, 3 (or 6) in 3/4 and 6/8. Repeat a name to hold it: `"G G G D"` in 4/4 changes to D on beat 4, `"C C C C C C C G"` on the last "&". In 3/4 the split is by slot, not by beat: `"Em D"` is Em on slots 1–3 and D from the "&" of 2; for a change on beat 3, write `"Em Em D"`. Only a change inside an eighth cannot be said.
+- Every name must be in the library (`CHORDS` in `app/src/engine/chords.js`; `validateSong`'s unknown-chord error lists the known chords) or in the song's `chords` block. A chord the library lacks, or one whose chart shape differs from the library's, goes in the `chords` block.
+- Several names split the bar evenly: `"C G"` in 4/4 is C on slots 1–4, G on 5–8. The number of names must divide the slot count: 1, 2, 4 (or 8) in 4/4; 1, 2, 3 (or 6) in 3/4 and 6/8. Repeat a name to hold it: `"G G G D"` in 4/4 changes to D on beat 4, `"C C C C C C C G"` on the last "&". In 3/4 the split is by slot, not by beat: `"Em D"` is Em on slots 1–3 and D from the "&" of 2; for a change on beat 3, write `"Em Em D"`. Only a change inside an eighth cannot be said.
 - In a picked bar the chord is what the fretting hand shows and where a plain string number takes its fret.
 
 ### strum
@@ -85,7 +85,7 @@ One entry per slot: a note with its octave, `A4` (440 Hz), `F#4`, `Bb3`, octaves
 
 ## The chords block
 
-Chord name → list of one or more fingerings. The first fingering is the shape shown for that chord in this song, and a library name given here overrides the library for this song.
+Chord name → list of one or more fingerings. The first fingering is the shape for that chord in this song; a library name given here means the song's shapes, not the library's, for this song.
 
 ```json
 "chords": {

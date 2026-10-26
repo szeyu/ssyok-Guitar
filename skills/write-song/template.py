@@ -9,22 +9,19 @@ SONG = {'title': 'Template example', 'bpm': 90, 'capo': 0, 'beats': 3}   # add '
 CHORDS = {}                        # own voicings: {'Bm': [{'name': ..., 'frets': [...6], 'fingers': [...6], 'tip': ...}]}
 
 SLOTS = SONG.get('beats', 4) * 2
+FIELDS = ('strum', 'pluck', 'section', 'lyric', 'syllables', 'tune')   # a bar's optional fields, in file order
+SLOTTED = {'pluck', 'syllables', 'tune'}                               # space-separated, one entry per slot
 bars = []
 
-def bar(chord, strum=None, pluck=None, section=None, lyric=None, syllables=None, tune=None):
-    at = f'bar {len(bars) + 1}'
-    assert strum or pluck, f'{at}: needs a strum or a pluck'
-    if strum:
-        assert len(strum) == SLOTS, f'{at}: strum {strum!r} has {len(strum)} slots, not {SLOTS}'
-        if not SONG.get('compound'):   # the pendulum: D on the numbers, U on the "&"
-            assert all(c != 'UD'[i % 2] for i, c in enumerate(strum)), f'{at}: strum {strum!r} breaks the pendulum'
-    for name, value in (('pluck', pluck), ('syllables', syllables), ('tune', tune)):
-        if value: assert len(value.split()) == SLOTS, f'{at}: {name} {value!r} has {len(value.split())} entries, not {SLOTS}'
-    assert SLOTS % len(chord.split()) == 0, f'{at}: {len(chord.split())} chords cannot split {SLOTS} slots evenly'
-    b = {'chord': chord}
-    for k, v in (('strum', strum), ('pluck', pluck), ('section', section), ('lyric', lyric), ('syllables', syllables), ('tune', tune)):
-        if v: b[k] = v
-    bars.append(b)
+# Only slot counts are checked here; validateSong and the test catch the rest and name the bar.
+def bar(chord, **fields):
+    where = f'bar {len(bars) + 1}'
+    for name, value in fields.items():
+        assert name in FIELDS, f'{where}: unknown field {name!r}'   # a typo would drop the field silently
+        if name not in SLOTTED | {'strum'}: continue
+        count = len(value) if name == 'strum' else len(value.split())
+        assert count == SLOTS, f'{where}: {name} {value!r} has {count} slots, not {SLOTS}'
+    bars.append({'chord': chord, **{name: fields[name] for name in FIELDS if fields.get(name)}})
 
 # ---- the bars, in playing order, one call per bar ----
 bar('C',   pluck='5 3 2 1 2 3', section='Intro')
@@ -34,6 +31,7 @@ bar('C',   strum='D.....')
 
 root = next(p for p in Path(__file__).resolve().parents if (p / 'app/songs/index.json').exists())
 out = root / 'app/songs' / f'{SLUG}.json'
+# Written by hand rather than json.dump so the file holds one bar per line.
 head = ''.join(f' {json.dumps(k)}: {json.dumps(v)},\n' for k, v in SONG.items())
 if CHORDS: head += f' "chords": {json.dumps(CHORDS)},\n'
 out.write_text('{\n' + head + ' "bars": [\n' + ',\n'.join('  ' + json.dumps(b) for b in bars) + '\n ]\n}\n')

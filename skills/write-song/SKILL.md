@@ -1,6 +1,6 @@
 ---
 name: write-song
-description: Chart a song into a song file for the guitar practice app (app/songs/*.json). Use when asked to add a song, convert a chord sheet, tab or screenshot into one, or fix a song's chords, strum, picking, words or melody.
+description: Chart a song into a song file for the guitar practice app (app/songs/*.json). Use when asked to add a song, convert a chart or tab, or fix a song.
 ---
 
 # Write a song
@@ -9,11 +9,11 @@ A song is one JSON file in `app/songs/`, written by a python3 script in `app/son
 
 ## Rules
 
-- **Chart the recording's guitar part**: the intro riff, the passing chords, the chart's voicings, the real strum or picking pattern. Leave the simplified sing-along accompaniment to songbooks.
+- **Chart the guitar part as the recording plays it**, in full: the intro riff, every passing chord, the chart's voicings, the real strum or picking pattern.
 - **Work from what the user supplied**: a chord chart, an Ultimate Guitar screenshot, a fingerstyle tab. A melody (`tune`) comes only from a supplied tab or score; when one is wanted and none was given, ask for a tab. Words come only from lyrics the user supplied; without them, leave the word fields out.
 - **One bar per line**: each bar is one `bar(...)` call in the script. Fix a song by editing its script and running it again, so script and file stay in step. A song with no script in `app/songs/src/` gets a small fix in its JSON directly; a larger one starts by writing its script.
-- **Two versions** when there is a melody tab: the guitar part alone, and the version with the melody. Separate scripts, separate files, distinct titles (e.g. "Song (fingerstyle)").
-- **Capo and voicings as the chart says.** Chord shapes are written as played above the capo. A chord the library lacks, or one whose chart shape differs from the library's, goes in the song's `chords` block.
+- **Two versions** when there is a melody tab: the guitar part alone, and the version with the melody. Separate scripts, separate files; titles as the `title` row in reference.md says.
+- **Capo and voicings as the chart says**, written as reference.md's `capo` row and `chord` section say.
 
 ## Steps
 

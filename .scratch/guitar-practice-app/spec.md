@@ -190,7 +190,7 @@ prototype/              the reference, unchanged
 - **Microphone:** a tuner (pitch detection on the mic signal) and strum-onset detection that feeds the same judging as the arrow keys. The latency offset is fixed for now.
 - **Design system:** the Hum tokens (paper, ink, pear accent, link blue, mint and coral, lane kraft, dark scene) declared once at the root, and card-stock buttons with a sinking press. The font is Chillax. Up and down strokes keep distinct colours, and text strokes on paper use ink, not pear.
 
-**Song file format** (decided in the prototype; `prototype/songs/SKILL.md` is the authoring guide):
+**Song file format** (decided in the prototype; `skills/write-song/` is the authoring guide):
 - Top level:
   - `title`, `bpm` (40–200: quarter notes a minute, or in 6/8 the dotted-quarter pulse, which the app multiplies by 1.5), optional `capo` (0–7), `beats` (3 or 4)
   - `compound: true` for 6/8 (needs `beats: 3`)
