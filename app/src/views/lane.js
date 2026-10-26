@@ -16,6 +16,9 @@ const still = matchMedia('(prefers-reduced-motion: reduce)');   // reduced motio
 const fit = (ctx, text, max) => { if (ctx.measureText(text).width <= max) return text; while (text && ctx.measureText(text + '…').width > max) text = text.slice(0, -1); return text + '…'; };
 const tab = f => f < 0 ? '×' : String(f);
 
+/** How far down the lane canvas the hit line sits, in CSS pixels. */
+export const hitLineY = cv => cv.clientHeight - BELOW;
+
 // where the strings and the hit line sit in a lane w by h
 function layout(w, h) {
   const right = 74, x0 = Math.max(70, Math.min(104, w * .26)), gap = Math.min(48, (w - x0 - right - 18) / 5);

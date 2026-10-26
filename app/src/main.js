@@ -5,11 +5,13 @@
 //   &tools=1       with the Tools menu open       &bpm=<n>      at that tempo  &go=1         playing (needs autoplay allowed)
 //   &view=audience the 3D seen as the audience sees it   &hand=0  without the 3D hand   &perf  3D frame times and resolution scale
 //   &drill=<n>     the player at strum step n (play=1 not needed)
+//   &verdict=<words>  a verdict over the hit line, held still (e.g. Late 40 ms; empty: Good)
+//   &done=1        the results card, from a fixed made-up run of taps judged by the real engine (player.js demoResults)
 //   &log           a trace of scheduled and drawn slot times in the console (run it with node tools/trace.js <url>)
 import { loadSongs } from './store.js';
 import { renderLibrary } from './screens/library.js';
 import { showSong, openPicker, setCapo, playSong } from './screens/song.js';
-import { toggleTools, setView } from './screens/player.js';
+import { toggleTools, setView, showVerdict, demoResults } from './screens/player.js';
 import { showScreen } from './screens/shell.js';
 import { CAPO_MAX } from './engine/song.js';
 
@@ -22,9 +24,11 @@ if (library.songs[Q.get('song')]) {
   openSong(+Q.get('song'));
   if (Q.has('capo')) setCapo(Math.min(CAPO_MAX, Math.max(0, Math.round(+Q.get('capo')) || 0)));
   if (Q.has('pick')) openPicker(Q.get('pick'));
-  if (Q.has('play') || Q.has('drill')) {
+  if (['play', 'drill', 'verdict', 'done'].some(f => Q.has(f))) {
     playSong({ step: Math.round(+Q.get('drill')) || 0, tempo: +Q.get('bpm') || undefined, bar: (Math.round(+Q.get('at')) || 1) - 1, play: Q.has('go') });
     if (Q.has('tools')) toggleTools(true);
     setView({ player: Q.get('view') !== 'audience', hand: Q.get('hand') !== '0' });
+    if (Q.has('verdict')) showVerdict(Q.get('verdict') || 'Good', true);
+    if (Q.has('done')) demoResults();
   }
 }

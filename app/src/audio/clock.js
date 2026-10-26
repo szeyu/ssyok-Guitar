@@ -14,20 +14,24 @@ export const heardTime = () => ctx.currentTime - (ctx.outputLatency || ctx.baseL
 /**
  * A clock that calls play(slot, time, counting) for every slot as its time comes near: counting is true for the count-in
  * slots before the start. lap(time) is called as each wrap of the loop is queued, with the audio time it will sound at, and
- * may return a new rate (slots a second).
+ * may return a new rate (slots a second), or 0 to end there instead: nothing more is queued, and over turns true once the
+ * end is heard.
  * Call tick() often while playing (every frame): it queues the next notes.
  */
 export function createClock({ play, lap }) {
-  let marks = [], next = 0, start = 0, startT = 0, loop = { a: 0, b: Infinity }, rate = 1, held = 0, playing = false;
+  let marks = [], next = 0, start = 0, startT = 0, loop = { a: 0, b: Infinity }, rate = 1, held = 0, playing = false, endT = Infinity;
   // the position is piecewise: from each mark on it runs at that mark's rate. A loop's wrap and a tempo change add a mark.
   const posAt = time => { let m = marks[0]; for (const mark of marks) if (mark.t <= time) m = mark; return m.pos + (time - m.t) * m.rate; };
 
   return {
     get playing() { return playing; },
-    /** { pos, countLeft }: where the song is (held while paused), and slots of count-in still to go (0 once it is over). */
-    now() {
+    /** True once the end a lap asked for has been heard (while still playing: stop it). */
+    get over() { return playing && heardTime() >= endT; },
+    /** { pos, countLeft }: where the song is (held while paused), and slots of count-in still to go (0 once it is over);
+     *  ago seconds back, for a key pressed a moment before. */
+    now(ago = 0) {
       if (!playing) return { pos: held, countLeft: 0 };
-      const t = heardTime(), p = posAt(t);
+      const t = Math.min(heardTime() - ago, endT), p = posAt(t);
       return t < startT ? { pos: start, countLeft: start - p } : { pos: p, countLeft: 0 };
     },
     /** Starts from pos (rounded down to a slot) after lead slots of count-in. */
@@ -35,7 +39,7 @@ export function createClock({ play, lap }) {
       audioContext();
       rate = slotsPerSecond; start = Math.floor(pos); next = start - lead;
       const t0 = ctx.currentTime + .06;
-      startT = t0 + lead / rate; marks = [{ t: t0, pos: next, rate }]; playing = true;
+      startT = t0 + lead / rate; marks = [{ t: t0, pos: next, rate }]; playing = true; endT = Infinity;
     },
     stop() { if (playing) held = this.now().pos; playing = false; },
     /** Jumps to pos; playing carries on from there without a count-in. */
@@ -43,7 +47,7 @@ export function createClock({ play, lap }) {
       held = pos;
       if (!playing) return;
       const t = ctx.currentTime + .02;
-      start = Math.ceil(pos); startT = t; next = start; marks = [{ t, pos, rate }];
+      start = Math.ceil(pos); startT = t; next = start; marks = [{ t, pos, rate }]; endT = Infinity;
     },
     setLoop(range) { loop = range; },
     setRate(slotsPerSecond) {
@@ -54,14 +58,16 @@ export function createClock({ play, lap }) {
       if (t < startT) startT = t + (start - pos) / rate;               // in the count-in: the first stroke lands later or sooner
     },
     tick() {
-      if (!playing) return;
+      if (!playing || endT < Infinity) return;
       const end = ctx.currentTime + AHEAD;
       for (;;) {
         const m = marks.at(-1);
         if (next >= loop.b) {                                        // the loop comes round: carry on from its start, maybe faster
           const t = m.t + (loop.b - m.pos) / m.rate;
           if (t > end) break;
-          rate = lap?.(t) ?? rate;
+          const r = lap?.(t) ?? rate;
+          if (!r) { endT = t; break; }
+          rate = r;
           marks.push({ t, pos: loop.a, rate }); next = loop.a;
           continue;
         }

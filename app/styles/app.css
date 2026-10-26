@@ -198,6 +198,25 @@ input:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; borde
 .pills.wide button { width: auto; height: 32px; padding: 0 16px; font-size: 13px; font-weight: 500 }
 .pills button[aria-pressed=true] { background: var(--ink); color: var(--bg); font-weight: 600 }
 .keys { margin: 0 0 0 auto; font-size: 12px; color: var(--mute) }
+
+/* a tap's verdict: a word that rises off the hit line and fades (player.js animates it; reduced motion: it only fades) */
+.verdict { position: absolute; left: 0; right: 0; width: fit-content; margin: 0 auto; padding: 6px 14px; border-radius: 999px; background: var(--grain), var(--panel); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line);
+  font: 700 24px/1 var(--serif); letter-spacing: -.02em; color: var(--ink); pointer-events: none; opacity: 0 }
+.verdict[data-tone=good] { color: var(--good) }
+.verdict[data-tone=bad] { color: var(--bad) }
+.verdict.held { opacity: 1 }
+/* the results card at the song's end: paper on the dimmed player */
+.results { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 16px; background: var(--shade-3); backdrop-filter: blur(3px) }
+.results[hidden] { display: none }
+.results .card { width: 100%; max-width: 460px; padding: 28px; border-radius: 24px; background: var(--grain), var(--panel); box-shadow: inset 0 0 0 1px var(--line), 0 30px 60px -20px var(--shade-3); rotate: -.6deg; animation: rise .35s var(--ease-snap) }
+.results h2 { margin: 0 0 8px; font: 600 32px var(--serif); letter-spacing: -.02em }
+.results .big { margin: 0 0 8px; font: 700 56px/1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums }
+.results p { margin: 0 0 14px; color: var(--mute) }
+.results .big:empty { display: none }
+.results .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px }
+.results .main { --edge-c: var(--brass-deep); background: var(--grain), var(--brass); color: var(--brass-ink) }
+.results button[hidden] { display: none }
+@keyframes rise { from { transform: translateY(14px); opacity: 0 } }
 kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin-right: 4px; padding: 0 8px; border-radius: 7px; font: 600 12px var(--ui); color: var(--ink-2); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line), 0 2px 0 0 var(--rim) }
 
 @media (max-width: 900px) {
