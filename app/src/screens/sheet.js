@@ -1,22 +1,11 @@
 // The whole song on one page: every bar as a card, grouped by section, or the raw data behind it (the song file's JSON).
 import { songMeta, sections, slotAt, slotsPerBar } from '../engine/song.js';
-import { el, strumRow } from '../views/dom.js';
+import { songJson } from '../engine/edit.js';
+import { el, strumRow, glyph } from '../views/dom.js';
 import { showScreen, onScreen } from './shell.js';
 
 const $ = id => document.getElementById(id);
 let song;
-
-// one glyph per slot, as the library card writes a strum
-const glyph = ({ stroke: k, text, tone }) => el('span', { textContent: text, className: [tone, k.hit ? '' : 'pass', k.accent ? 'accent' : ''].join(' ').trim() });
-
-/** A song as its file reads: one field, fingering or bar per line. */
-export function songJson({ bars, chords, ...top }) {
-  const list = (items, pad) => items.map(x => pad + JSON.stringify(x)).join(',\n');
-  const lines = Object.entries(top).map(([k, v]) => ` ${JSON.stringify(k)}: ${JSON.stringify(v)}`);
-  if (chords) lines.push(` "chords": {\n${Object.entries(chords).map(([name, shapes]) => `  ${JSON.stringify(name)}: [\n${list(shapes, '   ')}\n  ]`).join(',\n')}\n }`);
-  lines.push(` "bars": [\n${list(bars, '  ')}\n ]`);
-  return `{\n${lines.join(',\n')}\n}`;
-}
 
 /** Shows the sheet for a song, as bars or (raw true) as its raw data. A click on a bar calls play(bar index). */
 export function showSheet(s, play, raw = false) {

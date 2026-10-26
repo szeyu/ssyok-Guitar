@@ -2,12 +2,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { saveSong, savedSongs, removeSong, songMemory, remember, withSaved, readSongFile, SONGS_KEY, MEMORY_KEY } from '../app/src/store.js';
+import { DEFAULT_STRUM, errorText } from '../app/src/engine/song.js';
 
 const fake = () => {
   const m = new Map();
   return { getItem: k => m.has(k) ? m.get(k) : null, setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k), m };
 };
-const song = (title, over = {}) => ({ title, bpm: 80, bars: [{ chord: 'G', strum: 'D.DU.UDU' }], ...over });
+const song = (title, over = {}) => ({ title, bpm: 80, bars: [{ chord: 'G', strum: DEFAULT_STRUM }], ...over });
+const texts = errors => errors.map(errorText);
 const titles = s => savedSongs(s).songs.map(x => x.title);
 
 test('a saved song comes back, and an edit replaces it in its place', () => {
@@ -23,20 +25,45 @@ test('a saved song comes back, and an edit replaces it in its place', () => {
 
 test('a title another song has is refused, and nothing is saved', () => {
   const s = fake();
-  assert.deepEqual(saveSong(s, song('Jingle Bells'), { taken: ['Jingle Bells'] }), ['There is already a song with this title.']);
+  assert.deepEqual(texts(saveSong(s, song('Jingle Bells'), { taken: ['Jingle Bells'] })), ['There is already a song with this title.']);
   assert.equal(s.getItem(SONGS_KEY), null);
 });
 
 test('a pasted file with errors names each bar, and is not saved', () => {
   const s = fake();
-  const text = JSON.stringify(song('Bad', { bars: [{ chord: 'G', strum: 'D.DU.UDU' }, { chord: 'Q', strum: 'D.DU.UDU' }, { chord: 'C', strum: 'DDDD' }] }));
+  const text = JSON.stringify(song('Bad', { bars: [{ chord: 'G', strum: DEFAULT_STRUM }, { chord: 'Q', strum: DEFAULT_STRUM }, { chord: 'C', strum: 'DDDD' }] }));
   const { song: pasted, errors } = readSongFile(text);
-  assert.equal(errors.length, 2);
-  assert.match(errors[0], /^Bar 2: unknown chord "Q"/);
-  assert.match(errors[1], /^Bar 3: "strum" must be exactly 8 characters/);
+  assert.deepEqual(errors.map(e => e.bar), [2, 3]);
+  assert.match(errors[0].text, /^unknown chord "Q"/);
+  assert.match(texts(errors)[1], /^Bar 3: "strum" must be exactly 8 characters/);
   assert.deepEqual(saveSong(s, pasted), errors);
   assert.equal(s.getItem(SONGS_KEY), null);
-  assert.match(readSongFile('{ "title": ').errors[0], /^That is not valid JSON/);
+  assert.deepEqual(readSongFile('{ "title": ').errors.map(e => e.bar), [undefined]);
+  assert.match(readSongFile('{ "title": ').errors[0].text, /^That is not valid JSON/);
+});
+
+test('a renamed song takes its memory with it', () => {
+  const s = fake();
+  saveSong(s, song('A'));
+  remember(s, 'A', { capo: 2 });
+  saveSong(s, song('A2'), { was: 'A', taken: ['A'] });
+  assert.deepEqual(songMemory(s, 'A2'), { picks: {}, capo: 2 });
+  assert.equal(s.getItem(MEMORY_KEY + 'A'), null);
+});
+
+test('a folder song renamed keeps its place; removing the copy brings the folder version and its memory back', () => {
+  const s = fake(), files = [song('Folk'), song('Y')];
+  remember(s, 'Folk', { bar: 3 });
+  assert.deepEqual(saveSong(s, song('Folk 2', { bpm: 99 }), { was: 'Folk', taken: ['Folk', 'Y'] }), []);
+  const lib = withSaved(files, savedSongs(s).songs);
+  assert.deepEqual(lib.songs.map(x => x.title), ['Folk 2', 'Y']);
+  assert.deepEqual([...lib.files], ['Folk 2', 'Y']);
+  assert.deepEqual(saveSong(s, song('Folk 3'), { was: 'Folk 2', taken: ['Folk 2', 'Y'] }), [], 'renamed again, still the folder song\'s copy');
+  assert.deepEqual(withSaved(files, savedSongs(s).songs).songs.map(x => x.title), ['Folk 3', 'Y']);
+  assert.equal(songMemory(s, 'Folk 3').bar, 3);
+  removeSong(s, 'Folk 3');
+  assert.deepEqual(withSaved(files, savedSongs(s).songs).songs.map(x => x.title), ['Folk', 'Y']);
+  assert.equal(songMemory(s, 'Folk').bar, 3, 'the folder song keeps its memory');
 });
 
 test('remove takes the song and its memory, and leaves the others', () => {
@@ -68,13 +95,14 @@ test('broken or blocked storage reads as empty, and a song that no longer valida
   assert.deepEqual(titles(s), ['Fine']);
   assert.match(savedSongs(s).notes[0], /bpm/);
   const full = { getItem: () => null, setItem: () => { throw new Error('quota'); }, removeItem() {} };
-  assert.match(saveSong(full, song('A'))[0], /would not save/);
+  assert.match(saveSong(full, song('A'))[0].text, /would not save/);
 });
 
 test('the library: folder songs first, a browser copy in its file\'s place, then added songs', () => {
   const files = [song('X'), song('Y')], mine = [song('Z'), song('Y', { bpm: 100 })];
-  const { songs, saved } = withSaved(files, mine);
+  const { songs, saved, files: fromFolder } = withSaved(files, mine);
   assert.deepEqual(songs.map(x => x.title), ['X', 'Y', 'Z']);
   assert.equal(songs[1].bpm, 100);
   assert.deepEqual([...saved], ['Z', 'Y']);
+  assert.deepEqual([...fromFolder], ['X', 'Y']);
 });

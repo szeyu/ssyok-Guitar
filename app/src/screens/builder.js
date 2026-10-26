@@ -2,17 +2,17 @@
 // (strummed or picked). A bar with several chords, or strummed and picked together, is edited as text. Lyrics can be pasted and
 // fitted to the sections, or a whole song file pasted instead. Saving goes through the store, which checks the song first:
 // an invalid song is not saved, and its errors are listed by bar.
-import { CAPO_MAX, HITS, REST, slotsPerBar } from '../engine/song.js';
+import { CAPO_MAX, REST, STROKES, DEFAULT_STRUM, slotsPerBar, words } from '../engine/song.js';
 import { CHORDS } from '../engine/chords.js';
 import { fitLyrics, placeLyrics } from '../engine/lyrics.js';
+import { cellable, nextStroke, setMeter, withoutEmpty } from '../engine/edit.js';
 import { browserStorage, saveSong, readSongFile } from '../store.js';
 import { el, strumRow } from '../views/dom.js';
 import { showScreen, onScreen } from './shell.js';
 
-const $ = id => document.getElementById(id), words = s => s.trim().split(/\s+/);
+const $ = id => document.getElementById(id);
 const METERS = [{ label: '3/4', beats: 3 }, { label: '4/4', beats: 4 }, { label: '6/8', beats: 3, compound: true }];
-const STRUM = 'D.DU.UDU', PICK = { 8: '5 3 2 3 1 3 2 3', 6: '5 3 2 1 2 3' };
-const STROKE_NAME = { D: 'down', U: 'up', '>': 'accented down', x: 'chuck', [REST]: 'pass' };
+const PICK = { 8: '5 3 2 3 1 3 2 3', 6: '5 3 2 1 2 3' };
 const EXAMPLE = `{
  "title": "My song",
  "bpm": 90,
@@ -24,22 +24,22 @@ const EXAMPLE = `{
  ]
 }`;
 
-let draft, was = null, back = 'library', badBars = new Set();
-let hooks = { titles: () => [], isFile: () => false, saved: () => {} };
+let draft, editing = null, returnTo = 'library', badBars = new Set(), cells = [];
+let app = { titles: () => [], isFile: () => false, saved: () => {} };
 const asText = new WeakSet();                                   // bars the author chose to edit as text
 
 /** What the builder needs from the app: titles() every song's title, isFile(title) whether it is from the songs folder, and
  *  saved(song) once a song is saved. */
-export const setupBuilder = h => { hooks = h; };
+export const setupBuilder = needs => { app = needs; };
 
 /** Opens the builder on a copy of a song to edit, or with null on a new one. from: the screen Cancel and Esc go back to. */
 export function openBuilder(song, from = 'library') {
-  was = song?.title ?? null; back = from;
-  load(song ?? { title: '', bpm: 90, capo: 0, beats: 4, bars: [{ chord: 'G', strum: STRUM }] });
+  editing = song?.title ?? null; returnTo = from;
+  load(song ?? { title: '', bpm: 90, capo: 0, beats: 4, bars: [{ chord: 'G', strum: DEFAULT_STRUM }] });
   $('builderHead').textContent = song ? 'Edit song' : 'Add a song';
   $('bSave').textContent = song ? 'Save changes' : 'Add song';
   $('builderNote').textContent = !song ? 'Build it bar by bar, or paste a song file.'
-    : hooks.isFile(song.title) ? "This song is from the songs folder. Saving keeps your copy in this browser, in its place in the library. Remove the copy there to get the folder's version back."
+    : app.isFile(song.title) ? "From the songs folder. Saving keeps your copy in this browser, in its place; remove the copy to get the folder's back."
     : 'This song was added in this browser.';
   $('lyrInfo').textContent = '';
   showErrors([]);
@@ -56,43 +56,20 @@ function load(song) {
 }
 
 const slots = () => slotsPerBar(draft);
-const fit = (list, pad) => [...list, ...Array(slots()).fill(pad)].slice(0, slots());
-// a bar the cells can show: one chord, strummed or picked (not both), a stroke for every slot, and picks of single strings
-const cellable = bar => !/\s/.test(bar.chord.trim()) && !!bar.strum !== !!bar.pluck && (!bar.strum || bar.strum.length === slots())
-  && (!bar.pluck || (words(bar.pluck).length === slots() && words(bar.pluck).every(t => /^[1-6.]$/.test(t))));
-const editedAsText = bar => asText.has(bar) || !cellable(bar);
-
-// a click on a cell: strummed, it goes hit, hit harder, chuck, pass and round (in simple time a hit keeps the hand's direction);
-// picked, it goes . 6 5 4 3 2 1 and round
-function nextStroke(bar, i) {
-  if (bar.pluck) { const t = words(bar.pluck)[i]; return t === REST ? '6' : t === '1' ? REST : String(t - 1); }
-  const cycle = draft.compound ? [...HITS, REST] : [HITS[i % 2], ...HITS.slice(2), REST];
-  return cycle[(cycle.indexOf(bar.strum[i]) + 1) % cycle.length];
-}
+const editedAsText = bar => asText.has(bar) || !cellable(draft, bar);
 
 function render() {
   $('bCapo').replaceChildren(...Array.from({ length: CAPO_MAX + 1 }, (_, fret) => pill(fret, fret === draft.capo, () => { draft.capo = fret; render(); }, fret ? `Capo on fret ${fret}` : 'No capo')));
   const meter = METERS.findIndex(m => m.beats === (draft.beats ?? 4) && !!m.compound === !!draft.compound);
-  $('bBeats').replaceChildren(...METERS.map((m, i) => pill(m.label, i === meter, () => setMeter(m))));
+  $('bBeats').replaceChildren(...METERS.map((m, i) => pill(m.label, i === meter, () => { setMeter(draft, m); render(); })));
   const names = [...new Set([...Object.keys(CHORDS), ...Object.keys(draft.chords ?? {})])];
+  cells = [];
   $('bBars').replaceChildren(...draft.bars.map((bar, n) => barRow(bar, n, names)));
 }
 
 const pill = (text, on, onclick, ariaLabel) => el('button', { type: 'button', textContent: text, className: on ? 'on' : '', ariaPressed: String(on), onclick, ...ariaLabel ? { ariaLabel } : {} });
 const field = (label, input, className = '') => el('label', { className: 'field ' + className }, el('span', { textContent: label }), input);
 const textInput = (bar, key, size, title = '') => el('input', { value: bar[key] ?? '', size, title, spellcheck: false, oninput: e => { if (e.target.value.trim() || key === 'chord') bar[key] = e.target.value; else delete bar[key]; } });
-
-// changing the beats in a bar trims or pads every bar's strokes; a tune is written for one bar length, so it goes
-function setMeter({ beats, compound }) {
-  draft.beats = beats; if (compound) draft.compound = true; else delete draft.compound;
-  for (const bar of draft.bars) {
-    delete bar.tune;
-    if (bar.strum) bar.strum = (bar.strum + STRUM.slice(bar.strum.length)).slice(0, slots());
-    if (bar.pluck) bar.pluck = fit(words(bar.pluck), REST).join(' ');
-    if (bar.syllables) bar.syllables = fit(words(bar.syllables), REST).join(' ');
-  }
-  render();
-}
 
 function barRow(bar, n, names) {
   const text = editedAsText(bar), row = el('li', { className: 'barRow' + (badBars.has(n) ? ' bad' : '') });
@@ -107,21 +84,22 @@ function barRow(bar, n, names) {
   else {
     const picked = !!bar.pluck, tokens = picked ? words(bar.pluck) : [...bar.strum];
     let i = 0;
+    cells[n] = [];
     body = [
       field('Chord', el('select', { onchange: e => { bar.chord = e.target.value; } },
         ...[...new Set([...names, bar.chord])].map(c => el('option', { value: c, textContent: c, selected: c === bar.chord })))),
       el('button', { type: 'button', className: 'kind', textContent: picked ? 'Picked' : 'Strummed', title: 'Switch this bar between strumming and picking single strings',
-        onclick: () => { if (picked) { delete bar.pluck; bar.strum = STRUM.slice(0, slots()); } else { delete bar.strum; bar.pluck = PICK[slots()]; } render(); } }),
+        onclick: () => { if (picked) { delete bar.pluck; bar.strum = DEFAULT_STRUM.slice(0, slots()); } else { delete bar.strum; bar.pluck = PICK[slots()]; } render(); } }),
       el('span', { className: 'cells', role: 'group', ariaLabel: `Bar ${n + 1} strokes` }, ...strumRow(draft, n, ({ count, text: glyph, tone }) => {
         const at = i++, t = tokens[at];
-        return el('button', { type: 'button', className: `cell ${tone}`, ariaLabel: `${count}: ${picked ? (t === REST ? 'rest' : 'string ' + t) : STROKE_NAME[t]}. Click to change`,
-          onclick: () => { tokens[at] = nextStroke(bar, at); if (picked) bar.pluck = tokens.join(' '); else bar.strum = tokens.join(''); render(); $('bBars').children[n].querySelectorAll('.cell')[at].focus(); } },
+        return cells[n][at] = el('button', { type: 'button', className: `cell ${tone}`, ariaLabel: `${count}: ${picked ? (t === REST ? 'rest' : 'string ' + t) : STROKES[t]}. Click to change`,
+          onclick: () => { tokens[at] = nextStroke(draft, bar, at); if (picked) bar.pluck = tokens.join(' '); else bar.strum = tokens.join(''); render(); cells[n][at].focus(); } },
           el('b', { textContent: glyph }), el('small', { textContent: count }));
       })),
     ];
   }
   const tools = el('span', { className: 'barTools' },
-    el('button', { type: 'button', className: 'ghost', textContent: text ? 'Edit with cells' : 'Edit as text', hidden: text && !cellable(bar),
+    el('button', { type: 'button', className: 'ghost', textContent: text ? 'Edit with cells' : 'Edit as text', hidden: text && !cellable(draft, bar),
       onclick: () => { if (text) asText.delete(bar); else asText.add(bar); render(); } }),
     el('button', { type: 'button', className: 'ghost', textContent: 'Copy', ariaLabel: `Copy bar ${n + 1}`, title: 'Add a copy of this bar after it',
       onclick: () => { const copy = structuredClone(bar); delete copy.section; draft.bars.splice(n + 1, 0, copy); if (text) asText.add(copy); render(); } }),
@@ -131,25 +109,18 @@ function barRow(bar, n, names) {
   return row;
 }
 
-// the errors under the bars, each led by its bar when it names one; the rows with errors are marked
+// the errors ({ bar, text }) under the bars, each led by its bar when it has one; the rows with errors are marked
 function showErrors(errors) {
-  badBars = new Set(errors.flatMap(e => { const m = e.match(/^Bar (\d+): /); return m ? [m[1] - 1] : []; }));
+  badBars = new Set(errors.filter(e => e.bar).map(e => e.bar - 1));
   $('bErrors').hidden = !errors.length;
-  $('bErrors').querySelector('ul').replaceChildren(...errors.map(e => {
-    const m = e.match(/^(Bar \d+): (.*)$/);
-    return el('li', {}, ...m ? [el('b', { textContent: m[1] }), ' ' + m[2]] : [e]);
-  }));
+  $('bErrors').querySelector('ul').replaceChildren(...errors.map(({ bar, text }) => el('li', {}, ...bar ? [el('b', { textContent: `Bar ${bar}` }), ' ' + text] : [text])));
   $('bBars').querySelectorAll('.barRow').forEach((row, n) => row.classList.toggle('bad', badBars.has(n)));
   if (errors.length) $('bErrors').scrollIntoView({ block: 'nearest' });
   return errors.length;
 }
 
-// the song as it would be saved: the title and tempo from their fields, and no empty words or sections
-function built() {
-  const song = { ...structuredClone(draft), title: $('bTitle').value.trim(), bpm: Number($('bBpm').value) };
-  song.bars = song.bars.map(bar => Object.fromEntries(Object.entries(bar).filter(([k, v]) => k === 'chord' || typeof v !== 'string' || v.trim())));
-  return song;
-}
+// the song as it would be saved, with the title and tempo from their fields
+const built = () => withoutEmpty({ ...structuredClone(draft), title: $('bTitle').value.trim(), bpm: Number($('bBpm').value) });
 
 function loadFile() {
   const { song, errors } = readSongFile($('bFile').value);
@@ -166,24 +137,25 @@ $('bAdd').onclick = () => {
   const row = $('bBars').lastElementChild; (row.querySelector('select') ?? row.querySelector('input')).focus();
 };
 $('bSave').onclick = () => {
-  const song = built(), errors = saveSong(browserStorage(), song, { was, taken: hooks.titles() });
-  if (!showErrors(errors)) hooks.saved(song);
+  const song = built(), errors = saveSong(browserStorage(), song, { was: editing, taken: app.titles() });
+  if (!showErrors(errors)) app.saved(song);
 };
-$('bCancel').onclick = $('builderBack').onclick = () => showScreen(back);
-const lyricsGo = r => r.bars.forEach((b, n) => { if (b.lyric) draft.bars[n].lyric = b.lyric; else delete draft.bars[n].lyric; });
+$('bCancel').onclick = $('builderBack').onclick = () => showScreen(returnTo);
+// the words a lyrics fit gave the bars, copied onto the draft's own bars (they keep their edit-as-text choice)
+const takeWords = fitted => fitted.bars.forEach((b, n) => { for (const key of ['lyric', 'syllables']) if (b[key]) draft.bars[n][key] = b[key]; else delete draft.bars[n][key]; });
 $('lyrFit').onclick = () => {
-  const r = fitLyrics(draft.bars, $('lyrText').value);
-  lyricsGo(r); render();
+  const fitted = fitLyrics(draft.bars, $('lyrText').value);
+  takeWords(fitted); render();
   const sung = draft.bars.filter(b => b.section).length;
   $('lyrInfo').textContent = !sung ? 'Name the sections first (Verse, Chorus and so on, on their first bars): the blocks go on them.'
-    : `${r.placed} of ${r.blocks} blocks placed, on ${r.sections.join(', ') || 'no sung section'}.` + (r.blocks > r.placed ? ` The song has only ${r.placed} sung sections.` : '');
+    : `${fitted.placed} of ${fitted.blocks} blocks placed, on ${fitted.sections.join(', ') || 'no sung section'}.` + (fitted.blocks > fitted.placed ? ` The song has only ${fitted.placed} sung sections.` : '');
 };
 $('lyrFill').onclick = () => {
   const every = Math.max(1, Math.round(+$('lyrEvery').value) || 1), from = Math.max(1, Math.round(+$('lyrFrom').value) || 1) - 1;
-  const r = placeLyrics(draft.bars, $('lyrText').value, every, from);
-  lyricsGo(r); render();
-  $('lyrInfo').textContent = `${r.placed} of ${r.lines} lines placed` + (r.placed < r.lines ? ', then the bars ran out.' : '.') + (r.placed ? ` The next free bar is ${r.next + 1}.` : '');
-  $('lyrFrom').value = r.next + 1;
+  const placed = placeLyrics(draft.bars, $('lyrText').value, every, from);
+  takeWords(placed); render();
+  $('lyrInfo').textContent = `${placed.placed} of ${placed.lines} lines placed` + (placed.placed < placed.lines ? ', then the bars ran out.' : '.') + (placed.placed ? ` The next free bar is ${placed.next + 1}.` : '');
+  $('lyrFrom').value = placed.next + 1;
 };
 
-onScreen('builder', { esc: () => showScreen(back) });
+onScreen('builder', { esc: () => showScreen(returnTo) });

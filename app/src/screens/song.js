@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id), paren = t => t && ` (${t})`;
 const SUGGEST = 'Suggest easiest fingerings', SHOWN_STRUMS = 3;
 
 let song, memory, picks, pickerFor = '';
-const keep = change => { Object.assign(memory, change); remember(browserStorage(), song.title, change); };
+const rememberChange = change => { Object.assign(memory, change); remember(browserStorage(), song.title, change); };
 
 /** Draws the song screen for a song, with the picker closed. */
 export function showSong(s) {
@@ -28,7 +28,7 @@ export function showSong(s) {
   $('slowNote').textContent = `The whole song at ${slowBpm(song)} bpm`;
   $('playNote').textContent = `Full speed, ${song.bpm} bpm`;
   $('suggest').textContent = SUGGEST;
-  $('suggest').onclick = () => { Object.assign(picks, easiestFingerings(song)); keep({ picks }); renderChords(); $('suggest').textContent = 'Using the fingerings that move least'; };
+  $('suggest').onclick = () => { Object.assign(picks, easiestFingerings(song)); rememberChange({ picks }); renderChords(); $('suggest').textContent = 'Using the fingerings that move least'; };
   $('goSteps').onclick = () => playSong({ step: 1 });
   $('goSlow').onclick = () => playSong({ tempo: slowBpm(song), play: true });
   $('goPlay').onclick = () => playSong({ tempo: song.bpm, play: true });
@@ -49,7 +49,7 @@ onScreen('song', { esc: () => closePicker() || showScreen('library'), show: rend
 document.getElementById('songBack').onclick = () => showScreen('library');
 
 /** Opens the player on the song showing, with its fingering picks and capo. Options as openPlayer's. */
-export const playSong = options => openPlayer(song, { picks, capo: capoOf(song, memory.capo), onBar: bar => keep({ bar }), ...options });
+export const playSong = options => openPlayer(song, { picks, capo: capoOf(song, memory.capo), onBar: bar => rememberChange({ bar }), ...options });
 
 /** Opens the picker of fingerings for one of the song's chords; '' closes it. */
 export function openPicker(name) { pickerFor = chordsUsed(song).includes(name) ? name : ''; renderChords(); }
@@ -58,7 +58,7 @@ export function openPicker(name) { pickerFor = chordsUsed(song).includes(name) ?
 export function closePicker() { const was = !!pickerFor; if (was) openPicker(''); return was; }
 
 /** Puts the capo on a fret, 0 = none. */
-export function setCapo(fret) { keep({ capo: fret }); renderCapo(); }
+export function setCapo(fret) { rememberChange({ capo: fret }); renderCapo(); }
 
 function renderChords() {
   $('voicings').replaceChildren(...chordsUsed(song).map(name => {
@@ -73,7 +73,7 @@ function renderChords() {
   const on = voicingIndex(song, pickerFor, picks);
   picker.replaceChildren(...chordShapes(song, pickerFor).map((v, i) => el('button', {
     type: 'button', className: 'card' + (i === on ? ' sel' : ''), ariaPressed: String(i === on),
-    onclick: () => { picks[pickerFor] = i; keep({ picks }); $('suggest').textContent = SUGGEST; openPicker(''); },
+    onclick: () => { picks[pickerFor] = i; rememberChange({ picks }); $('suggest').textContent = SUGGEST; openPicker(''); },
   }, chordBox(v), el('b', { textContent: v.name + paren(shapeLabel(song, pickerFor, i)) }), el('span', { textContent: v.tip ?? '' }))));
 }
 

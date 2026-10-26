@@ -6,11 +6,18 @@ const COUNT = ['1', '&', '2', '&', '3', '&', '4', '&'];
 export const NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 export const ALIAS = { Db: 'C#', 'D#': 'Eb', Gb: 'F#', 'G#': 'Ab', 'A#': 'Bb' };
 const whole = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
-const words = s => s.trim().split(/\s+/);
+/** A space-separated field's entries. */
+export const words = s => s.trim().split(/\s+/);
 
 // The strum vocabulary, one character per eighth-note slot: D down, U up, > accented down, x chuck (a muted hit),
-// and REST, where the hand swings past without touching (REST is also a picked bar's rest).
-export const HITS = 'DU>x', REST = '.';
+// and REST, where the hand swings past without touching (REST is also a picked bar's rest). A new stroke is one line in STROKES.
+export const REST = '.';
+/** Each stroke's character and its name as a screen reader says it. */
+export const STROKES = { D: 'down', U: 'up', '>': 'accented down', x: 'chuck', [REST]: 'pass' };
+export const HITS = Object.keys(STROKES).filter(ch => ch !== REST).join('');
+
+/** The strum a new bar starts with: down, pass, down, up, pass, up, down, up. */
+export const DEFAULT_STRUM = 'D.DU.UDU';
 
 /** The highest fret a capo can go on; 0 is no capo. */
 export const CAPO_MAX = 7;
@@ -27,45 +34,51 @@ export const slotsPerBar = song => (song.beats === 3 ? 3 : 4) * 2;
 /** Slots in one chord's stretch of bar n: several chords in a bar split it evenly. */
 export const stretchSlots = (song, n) => slotsPerBar(song) / barChords(song.bars[n]).length;
 
+/** A song error as one sentence, led by its bar when it has one. */
+export const errorText = ({ bar, text }) => bar ? `Bar ${bar}: ${text}` : text;
+
 /** A song file's problems as sentences for its author, naming the bar; empty when the song is valid. */
-export function validateSong(song) {
-  const err = [];
-  if (!song || typeof song !== 'object' || Array.isArray(song)) return ['The song must be one JSON object: { "title": ..., "bpm": ..., "bars": [...] }'];
-  if (typeof song.title !== 'string' || !song.title.trim()) err.push('"title" is missing.');
-  if (!whole(song.bpm, 40, 200)) err.push('"bpm" must be a whole number from 40 to 200.');
-  if (song.capo !== undefined && !whole(song.capo, 0, CAPO_MAX)) err.push(`"capo" must be a whole number from 0 to ${CAPO_MAX}.`);
-  if (song.beats !== undefined && song.beats !== 3 && song.beats !== 4) err.push('"beats" (beats in a bar) must be 3 or 4.');
-  if ((song.compound !== undefined && typeof song.compound !== 'boolean') || (song.compound && song.beats !== 3)) err.push('"compound": true (6/8 time) needs "beats": 3, which gives six eighth notes in a bar.');
+export const validateSong = song => songErrors(song).map(errorText);
+
+/** A song file's problems as { bar, text }: bar is the bar's number (1 = the first), undefined for the song as a whole. */
+export function songErrors(song) {
+  const err = [], fault = text => err.push({ text });
+  if (!song || typeof song !== 'object' || Array.isArray(song)) return [{ text: 'The song must be one JSON object: { "title": ..., "bpm": ..., "bars": [...] }' }];
+  if (typeof song.title !== 'string' || !song.title.trim()) fault('"title" is missing.');
+  if (!whole(song.bpm, 40, 200)) fault('"bpm" must be a whole number from 40 to 200.');
+  if (song.capo !== undefined && !whole(song.capo, 0, CAPO_MAX)) fault(`"capo" must be a whole number from 0 to ${CAPO_MAX}.`);
+  if (song.beats !== undefined && song.beats !== 3 && song.beats !== 4) fault('"beats" (beats in a bar) must be 3 or 4.');
+  if ((song.compound !== undefined && typeof song.compound !== 'boolean') || (song.compound && song.beats !== 3)) fault('"compound": true (6/8 time) needs "beats": 3, which gives six eighth notes in a bar.');
   const beats = song.beats === 3 ? 3 : 4, slots = slotsPerBar(song);
   const songChords = song.chords && typeof song.chords === 'object' && !Array.isArray(song.chords) ? song.chords : {};
-  if (song.chords !== undefined && songChords !== song.chords) err.push('"chords" must be an object: chord name to a list of fingerings.');
+  if (song.chords !== undefined && songChords !== song.chords) fault('"chords" must be an object: chord name to a list of fingerings.');
   for (const [name, fingerings] of Object.entries(songChords)) {
-    if (!/^[A-G][#b]?/.test(name)) err.push(`Chord "${name}": the name must start with a note letter, A to G.`);
-    if (!Array.isArray(fingerings) || !fingerings.length) { err.push(`Chord "${name}" needs a list with at least one fingering.`); continue; }
+    if (!/^[A-G][#b]?/.test(name)) fault(`Chord "${name}": the name must start with a note letter, A to G.`);
+    if (!Array.isArray(fingerings) || !fingerings.length) { fault(`Chord "${name}" needs a list with at least one fingering.`); continue; }
     fingerings.forEach((fingering, i) => {
       const at = `Chord "${name}", fingering ${i + 1}: `;
-      if (!Array.isArray(fingering?.frets) || fingering.frets.length !== 6 || !fingering.frets.every(f => whole(f, -1, 20))) err.push(at + '"frets" must be six whole numbers, thickest string first (-1 = do not play, 0 = open).');
-      else if (!Array.isArray(fingering.fingers) || fingering.fingers.length !== 6 || !fingering.fingers.every(f => whole(f, 0, 4))) err.push(at + '"fingers" must be six numbers from 0 to 4 (0 = no finger).');
-      else if (fingering.frets.some((f, string) => (f > 0) !== (fingering.fingers[string] > 0))) err.push(at + 'every pressed string needs a finger, and open or unplayed strings must have finger 0.');
+      if (!Array.isArray(fingering?.frets) || fingering.frets.length !== 6 || !fingering.frets.every(f => whole(f, -1, 20))) fault(at + '"frets" must be six whole numbers, thickest string first (-1 = do not play, 0 = open).');
+      else if (!Array.isArray(fingering.fingers) || fingering.fingers.length !== 6 || !fingering.fingers.every(f => whole(f, 0, 4))) fault(at + '"fingers" must be six numbers from 0 to 4 (0 = no finger).');
+      else if (fingering.frets.some((f, string) => (f > 0) !== (fingering.fingers[string] > 0))) fault(at + 'every pressed string needs a finger, and open or unplayed strings must have finger 0.');
     });
   }
-  if (!Array.isArray(song.bars) || !song.bars.length) err.push('"bars" must be a list with at least one bar.');
+  if (!Array.isArray(song.bars) || !song.bars.length) fault('"bars" must be a list with at least one bar.');
   else song.bars.forEach((bar, i) => {
-    const at = `Bar ${i + 1}: `;
+    const bad = text => err.push({ bar: i + 1, text });
     const names = typeof bar?.chord === 'string' && bar.chord.trim() ? words(bar.chord) : [String(bar?.chord)];
-    for (const name of names) if (!CHORDS[name] && !songChords[name]) err.push(at + `unknown chord "${name}". Known chords: ${Object.keys(CHORDS).join(', ')}.`);
-    if (slots % names.length) err.push(at + `${names.length} chords cannot share a bar of ${slots} counts evenly. Use ${beats === 3 ? '2 or 3' : '2 or 4'} chords, or one.`);
-    if (bar?.lyric !== undefined && typeof bar.lyric !== 'string') err.push(at + '"lyric" must be text.');
-    if (bar?.syllables !== undefined && !(typeof bar.syllables === 'string' && words(bar.syllables).length === slots)) err.push(at + `"syllables" must be ${slots} entries separated by spaces, one per eighth note, with . where nothing is sung.`);
-    if (bar?.tune !== undefined && !(typeof bar.tune === 'string' && words(bar.tune).length === slots && words(bar.tune).every(entry => /^([._]|[A-G][#b]?[2-6])$/.test(entry)))) err.push(at + `"tune" must be ${slots} entries separated by spaces: a note with its octave such as G4 or F#4, . to hold, or _ for silence.`);
+    for (const name of names) if (!CHORDS[name] && !songChords[name]) bad(`unknown chord "${name}". Known chords: ${[...new Set([...Object.keys(CHORDS), ...Object.keys(songChords)])].join(', ')}. Add it in the song's "chords" block.`);
+    if (slots % names.length) bad(`${names.length} chords cannot share a bar of ${slots} counts evenly. Use ${beats === 3 ? '2 or 3' : '2 or 4'} chords, or one.`);
+    if (bar?.lyric !== undefined && typeof bar.lyric !== 'string') bad('"lyric" must be text.');
+    if (bar?.syllables !== undefined && !(typeof bar.syllables === 'string' && words(bar.syllables).length === slots)) bad(`"syllables" must be ${slots} entries separated by spaces, one per eighth note, with . where nothing is sung.`);
+    if (bar?.tune !== undefined && !(typeof bar.tune === 'string' && words(bar.tune).length === slots && words(bar.tune).every(entry => /^([._]|[A-G][#b]?[2-6])$/.test(entry)))) bad(`"tune" must be ${slots} entries separated by spaces: a note with its octave such as G4 or F#4, . to hold, or _ for silence.`);
     if (bar?.pluck !== undefined) {
       const pluckTokens = typeof bar.pluck === 'string' ? words(bar.pluck) : [];
       const riffNote = token => /^[1-6](:\d{1,2})?$/.test(token) && !(+token.split(':')[1] > 20);
-      if (pluckTokens.length !== slots || !pluckTokens.every(token => token === REST || (/^[1-6]{1,3}$/.test(token) && new Set(token).size === token.length) || token.split('+').every(riffNote))) err.push(at + `"pluck" must be ${slots} entries separated by spaces: a string number 1 to 6 (6 = thickest), digits together to pluck several at once, a string with its own fret such as 2:3 (joined with + to play several), or . to rest.`);
+      if (pluckTokens.length !== slots || !pluckTokens.every(token => token === REST || (/^[1-6]{1,3}$/.test(token) && new Set(token).size === token.length) || token.split('+').every(riffNote))) bad(`"pluck" must be ${slots} entries separated by spaces: a string number 1 to 6 (6 = thickest), digits together to pluck several at once, a string with its own fret such as 2:3 (joined with + to play several), or . to rest.`);
       if (bar.strum === undefined) return;                       // picked only; with a strum as well, the strum is checked below
     }
-    if (typeof bar?.strum !== 'string' || ![...bar.strum].every(ch => (HITS + REST).includes(ch)) || bar.strum.length !== slots) err.push(at + `"strum" must be exactly ${slots} characters from ${[...HITS].join(' ')} and ${REST} (one per eighth note, ${beats} beats in a bar).`);
-    else if (!song.compound) [...bar.strum].forEach((ch, slot) => { if (ch === 'UD'[slot % 2]) err.push(at + `stroke ${slot + 1} is "${ch}", but the hand moves ${slot % 2 ? 'up' : 'down'} on "${COUNT[slot]}".`); });
+    if (typeof bar?.strum !== 'string' || ![...bar.strum].every(ch => (HITS + REST).includes(ch)) || bar.strum.length !== slots) bad(`"strum" must be exactly ${slots} characters from ${[...HITS].join(' ')} and ${REST} (one per eighth note, ${beats} beats in a bar).`);
+    else if (!song.compound) [...bar.strum].forEach((ch, slot) => { if (ch === 'UD'[slot % 2]) bad(`stroke ${slot + 1} is "${ch}", but the hand moves ${slot % 2 ? 'up' : 'down'} on "${COUNT[slot]}".`); });
   });
   return err;
 }

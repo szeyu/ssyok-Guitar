@@ -10,7 +10,7 @@ const sungLines = text => text.split('\n').map(line => line.trim()).filter(Boole
 
 /** A whole song's lyrics fitted to its sections. A blank line or a heading ends a block; each block goes, in order, onto the
  *  next sung section (intros, interludes, instrumentals, solos and outros are skipped), its lines spread evenly over that
- *  section's bars. Words already on the bars are cleared first. Returns { bars, placed, blocks, sections } (sections: the names
+ *  section's bars. Words already on the bars are cleared first, and a bar given words loses its timed words (they would hide them). Returns { bars, placed, blocks, sections } (sections: the names
  *  of the sections that got a block). */
 export function fitLyrics(bars, text) {
   const blocks = text.split('\n').reduce((all, raw) => {
@@ -26,6 +26,7 @@ export function fitLyrics(bars, text) {
   used.forEach((section, i) => blocks[i].forEach((line, j) => {
     const bar = out[section.at + Math.floor(j * section.bars / blocks[i].length)];
     bar.lyric = bar.lyric ? bar.lyric + ' / ' + line : line;
+    delete bar.syllables;
   }));
   return { bars: out, placed: used.length, blocks: blocks.length, sections: used.map(s => s.name) };
 }
@@ -35,6 +36,6 @@ export function fitLyrics(bars, text) {
 export function placeLyrics(bars, text, every, from = 0) {
   const lines = sungLines(text), out = copy(bars);
   let placed = 0;
-  lines.forEach((line, i) => { const bar = out[from + i * every]; if (bar) { bar.lyric = line; placed++; } });
+  lines.forEach((line, i) => { const bar = out[from + i * every]; if (bar) { bar.lyric = line; delete bar.syllables; placed++; } });
   return { bars: out, placed, lines: lines.length, next: from + placed * every };
 }

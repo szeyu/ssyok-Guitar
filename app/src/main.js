@@ -12,14 +12,14 @@
 //   ?build=1       the builder on a new song     ?paste=bad    the builder after pasting a made-up song file with errors in three bars
 //   &log           a trace of scheduled and drawn slot times in the console (run it with node tools/trace.js <url>)
 import { loadSongs, removeSong, browserStorage } from './store.js';
-import { renderLibrary } from './screens/library.js';
+import { renderLibrary, focusAddCard } from './screens/library.js';
 import { showSong, openPicker, setCapo, playSong } from './screens/song.js';
 import { setupBuilder, openBuilder, pasteFile } from './screens/builder.js';
 import { showSheet } from './screens/sheet.js';
 import { toggleTools, setView, showVerdict, demoResults } from './screens/player.js';
 import { showFakeTuning } from './screens/tuner.js';
 import { showScreen } from './screens/shell.js';
-import { CAPO_MAX } from './engine/song.js';
+import { CAPO_MAX, DEFAULT_STRUM } from './engine/song.js';
 
 let library;
 const openSong = i => { showSong(library.songs[i]); showScreen('song'); };
@@ -29,7 +29,7 @@ async function refresh() {
   renderLibrary(library, {
     open: openSong,
     add: () => openBuilder(null, 'library'),
-    remove: async title => { removeSong(browserStorage(), title); await refresh(); document.querySelector('#songBox .add').focus(); },
+    remove: async title => { removeSong(browserStorage(), title); await refresh(); focusAddCard(); },
   });
 }
 await refresh();
@@ -57,4 +57,4 @@ if (library.songs[Q.get('song')]) {
 }
 if (Q.has('build') || Q.has('paste')) openBuilder(null);
 if (Q.get('paste') === 'bad') pasteFile(JSON.stringify({ title: 'Pasted song', bpm: 90, bars: [
-  { chord: 'G', strum: 'D.DU.UDU' }, { chord: 'H', strum: 'D.DU.UDU' }, { chord: 'C', strum: 'D.DU' }, { chord: 'D', strum: 'U.DU.UDU' }] }, null, 1));
+  { chord: 'G', strum: DEFAULT_STRUM }, { chord: 'H', strum: DEFAULT_STRUM }, { chord: 'C', strum: 'D.DU' }, { chord: 'D', strum: 'U.DU.UDU' }] }, null, 1));

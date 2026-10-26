@@ -1,7 +1,7 @@
 // Songs from the songs folder (songs/index.json lists them in library order, each file is one song), and what this browser
 // keeps: the songs added or edited in the builder, and each song's memory (fingering picks, capo, last bar).
 // The browser half works on any storage with getItem, setItem and removeItem (localStorage in the app, a fake in the tests).
-import { validateSong } from './engine/song.js';
+import { validateSong, songErrors } from './engine/song.js';
 
 /** The keys: one list of saved songs, and one memory per song title. */
 export const SONGS_KEY = 'guitar.songs', MEMORY_KEY = 'guitar.memory.';
@@ -23,30 +23,43 @@ export function savedSongs(storage) {
   return { songs, notes };
 }
 
-/** A pasted song file: { song, errors }, errors as validateSong gives them (naming the bar), or one for text that is not JSON. */
+/** A pasted song file: { song, errors }, errors as songErrors gives them ({ bar, text }), or one for text that is not JSON. */
 export function readSongFile(text) {
   let song;
-  try { song = JSON.parse(text); } catch (e) { return { song: null, errors: ['That is not valid JSON: ' + e.message] }; }
-  return { song, errors: validateSong(song) };
+  try { song = JSON.parse(text); } catch (e) { return { song: null, errors: [{ text: 'That is not valid JSON: ' + e.message }] }; }
+  return { song, errors: songErrors(song) };
 }
+
+// a song's memory under a new title
+const moveMemory = (storage, from, to) => {
+  const memory = storage.getItem(MEMORY_KEY + from);
+  if (memory !== null) { storage.setItem(MEMORY_KEY + to, memory); storage.removeItem(MEMORY_KEY + from); }
+};
 
 /** Saves a song in this browser, replacing the one it was edited from (was: that song's title) or a saved one with its title.
- *  taken: the titles of every song in the library. Returns the errors; nothing is saved unless there are none. */
+ *  taken: the titles of every song in the library. A song edited from the songs folder (was names no saved song) is saved as a
+ *  copy with source: the folder song's title, so it keeps that song's place whatever its title. A renamed song takes its memory.
+ *  Returns the errors as { bar, text }; nothing is saved unless there are none. */
 export function saveSong(storage, song, { was = null, taken = [] } = {}) {
-  const errors = validateSong(song);
-  if (song?.title !== was && taken.includes(song?.title)) errors.push('There is already a song with this title.');
+  const errors = songErrors(song);
+  if (song?.title !== was && taken.includes(song?.title)) errors.push({ text: 'There is already a song with this title.' });
   if (errors.length) return errors;
   const list = savedList(storage), same = s => s.title === was || s.title === song.title, at = list.findIndex(same);
+  const edited = list.find(s => s.title === was), { source: _, ...copy } = song, source = was === null ? undefined : edited ? edited.source : was;
   const next = list.filter(s => !same(s));
-  next.splice(at < 0 ? next.length : at, 0, song);              // an edited song keeps its place
-  return storage && write(storage, SONGS_KEY, next) ? [] : ['This browser would not save the song: its storage is full or turned off.'];
+  next.splice(at < 0 ? next.length : at, 0, source ? { ...copy, source } : copy);   // an edited song keeps its place
+  if (!storage || !write(storage, SONGS_KEY, next)) return [{ text: 'This browser would not save the song: its storage is full or turned off.' }];
+  if (was !== null && was !== song.title) try { moveMemory(storage, was, song.title); } catch {}
+  return [];
 }
 
-/** Removes a song saved in this browser, and its memory. */
+/** Removes a song saved in this browser. A song added here loses its memory too; a copy of a folder song gives its memory back
+ *  to the folder song. */
 export function removeSong(storage, title) {
   if (!storage) return;
-  write(storage, SONGS_KEY, savedList(storage).filter(s => s.title !== title));
-  try { storage.removeItem(MEMORY_KEY + title); } catch {}
+  const list = savedList(storage), source = list.find(s => s.title === title)?.source;
+  write(storage, SONGS_KEY, list.filter(s => s.title !== title));
+  try { if (!source) storage.removeItem(MEMORY_KEY + title); else if (source !== title) moveMemory(storage, title, source); } catch {}
 }
 
 /** What this browser remembers of a song: { picks } (chord name to the fingering's index), and capo and bar once set. */
@@ -57,19 +70,21 @@ export function remember(storage, title, change) {
   if (storage) write(storage, MEMORY_KEY + title, { ...songMemory(storage, title), ...change });
 }
 
-/** The library: the folder's songs in index order, each replaced by this browser's copy when one has its title, then the songs
- *  added in this browser. saved: the titles that come from this browser. */
+/** The library: the folder's songs in index order, each replaced by this browser's copy of it (source, or failing that the
+ *  title, names the folder song), then the songs added in this browser. saved: the titles that come from this browser;
+ *  files: the titles in the folder's places (a folder song or a copy of one). */
 export function withSaved(files, saved) {
-  const mine = new Map(saved.map(s => [s.title, s]));
-  return { songs: [...files.map(s => mine.get(s.title) ?? s), ...saved.filter(s => !files.some(f => f.title === s.title))], saved: new Set(mine.keys()) };
+  const folderTitle = s => s.source ?? s.title, mine = new Map(saved.map(s => [folderTitle(s), s]));
+  const songs = files.map(s => mine.get(s.title) ?? s);
+  return { songs: [...songs, ...saved.filter(s => !files.some(f => f.title === folderTitle(s)))], saved: new Set(saved.map(s => s.title)), files: new Set(songs.map(s => s.title)) };
 }
 
 /** Fetches and validates every song in the index. A file that fails, or repeats a title already loaded, is skipped and named in
- *  notes. Then the browser's songs join (withSaved). files: the titles from the folder. */
+ *  notes. Then the browser's songs join (withSaved). */
 export async function loadSongs(base = 'songs/', storage = browserStorage()) {
   const { songs: files, notes } = await loadFiles(base);
   const saved = savedSongs(storage);
-  return { ...withSaved(files, saved.songs), files: new Set(files.map(s => s.title)), notes: [...notes, ...saved.notes] };
+  return { ...withSaved(files, saved.songs), notes: [...notes, ...saved.notes] };
 }
 
 async function loadFiles(base) {

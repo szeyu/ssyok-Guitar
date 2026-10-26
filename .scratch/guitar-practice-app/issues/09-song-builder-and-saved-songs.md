@@ -10,10 +10,20 @@ Errors name the bar and what is wrong. Mixed and multi-chord bars are edited as 
 
 **Blocked by:** 03 (Song screen)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A song built in the builder plays, persists after reload, and can be removed with two clicks
-- [ ] A pasted song file with errors lists each error by bar and is not saved
-- [ ] Pasted lyrics are fitted to sections: headings or blank lines split blocks; intros and instrumentals are skipped
-- [ ] Fingering, capo and last bar come back after reload
-- [ ] Tests cover the storage logic that needs no browser
+- [x] A song built in the builder plays, persists after reload, and can be removed with two clicks
+- [x] A pasted song file with errors lists each error by bar and is not saved
+- [x] Pasted lyrics are fitted to sections: headings or blank lines split blocks; intros and instrumentals are skipped
+- [x] Fingering, capo and last bar come back after reload
+- [x] Tests cover the storage logic that needs no browser
+
+## Comments
+
+Done in c87f3b2, with review fixes after.
+
+- Storage keys: `guitar.songs` (the saved songs) and `guitar.memory.<title>` (each song's picks, capo and last bar).
+- Editing a folder song saves a browser copy in its place (its `source` names the folder song, so a renamed copy stays put). Remove restores the folder version and keeps its memory; only a song added in the browser loses its memory on Remove.
+- Renaming a song moves its memory to the new title.
+- Unsaved drafts are lost on Esc or reload.
+- The sheet leaves out the prototype's Copy and Download.

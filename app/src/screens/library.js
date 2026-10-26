@@ -2,10 +2,7 @@
 // any file that was skipped. A song kept in this browser has a two-step Remove under its card.
 import { mainStrumBar, songMeta } from '../engine/song.js';
 import { chordsUsed } from '../engine/chords.js';
-import { el, strumRow } from '../views/dom.js';
-
-// one bar's strokes as glyphs, one per slot
-const glyph = ({ stroke: k, text, tone }) => el('span', { textContent: text, className: [tone, k.hit ? '' : 'pass', k.accent ? 'accent' : ''].join(' ').trim() });
+import { el, strumRow, glyph } from '../views/dom.js';
 
 /** Draws the song cards and the folder note into the library screen. on: open(index) for a card, add() for the add card,
  *  remove(title) once a Remove is confirmed. */
@@ -20,6 +17,9 @@ export function renderLibrary({ songs, notes, saved = new Set(), files = new Set
   const mine = songs.filter(s => saved.has(s.title) && !files.has(s.title)).length;
   document.getElementById('fileNote').replaceChildren(`${songs.length - mine} from the songs folder${mine ? `, ${mine} added in this browser` : ''}.`, ...notes.map(t => el('div', { className: 'err', textContent: t })));
 }
+
+/** Moves the focus to the add card (after a Remove takes the card that had it). */
+export const focusAddCard = () => document.querySelector('#songBox .add').focus();
 
 // Remove, then "Remove?" to confirm or Keep to back out; no browser dialog
 function removal(title, remove) {

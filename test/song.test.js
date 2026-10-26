@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chordsUsed } from '../app/src/engine/chords.js';
-import { validateSong, slotAt, slotsPerBar, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar, stretchSlots, riffMarks } from '../app/src/engine/song.js';
+import { validateSong, songErrors, slotAt, slotsPerBar, noteHz, stringIndex, hasMelody, hasLyrics, mainStrumBar, stretchSlots, riffMarks } from '../app/src/engine/song.js';
 
 const song = (over = {}) => ({ title: 'x', bpm: 80, bars: [{ chord: 'G', strum: 'D.DU.UDU' }], ...over });
 
@@ -9,9 +9,15 @@ test('a tempo out of range is named', () => {
   assert.deepEqual(validateSong(song({ bpm: 300 })), ['"bpm" must be a whole number from 40 to 200.']);
 });
 
-test('an unknown chord is named with its bar and the known chords', () => {
+test('an unknown chord is named with its bar, the known chords and where to add one', () => {
   const [e] = validateSong(song({ bars: [{ chord: 'G', strum: 'D.DU.UDU' }, { chord: 'H', strum: 'D.DU.UDU' }] }));
-  assert.match(e, /^Bar 2: unknown chord "H"\. Known chords: G, Em, C, D, Dm, Am, E, A, F\.$/);
+  assert.match(e, /^Bar 2: unknown chord "H"\. Known chords: G, Em, C, D, Dm, Am, E, A, F\. Add it in the song's "chords" block\.$/);
+  const E7 = [{ frets: [0, 2, 0, 1, 0, 0], fingers: [0, 2, 0, 1, 0, 0] }];
+  assert.match(validateSong(song({ chords: { E7 }, bars: [{ chord: 'H', strum: 'D.DU.UDU' }] }))[0], /Known chords: G, .*, F, E7\./);
+});
+
+test('song errors carry their bar as a number', () => {
+  assert.deepEqual(songErrors(song({ bpm: 300, bars: [{ chord: 'G', strum: 'D.DU' }] })).map(e => e.bar), [undefined, 1]);
 });
 
 test("a song's own chord is known in that song", () => {

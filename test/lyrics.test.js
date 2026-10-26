@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fitLyrics, placeLyrics } from '../app/src/engine/lyrics.js';
+import { DEFAULT_STRUM } from '../app/src/engine/song.js';
 
-const bar = section => ({ chord: 'G', strum: 'D.DU.UDU', ...(section ? { section } : {}) });
+const bar = section => ({ chord: 'G', strum: DEFAULT_STRUM, ...(section ? { section } : {}) });
 // Intro 2 bars, Verse 4, Instrumental 2, Chorus 2
 const bars = [bar('Intro'), bar(), bar('Verse'), bar(), bar(), bar(), bar('Instrumental'), bar(), bar('Chorus'), bar()];
 const words = b => b.map(x => x.lyric ?? '');
@@ -30,6 +31,14 @@ test('fitting clears old words and leaves the bars given alone', () => {
   const r = fitLyrics(old, 'x');
   assert.deepEqual(words(r.bars), ['', '', 'x', '', '', '', '', '', '', '']);
   assert.equal(old[0].lyric, 'old 0');
+});
+
+test('a bar given words loses its timed words, which would hide them', () => {
+  const timed = bars.map(b => ({ ...b, syllables: 'a . . . . . . .' }));
+  const r = fitLyrics(timed, 'x');
+  assert.equal(r.bars[2].lyric, 'x');
+  assert.equal('syllables' in r.bars[2], false);
+  assert.equal(r.bars[3].syllables, 'a . . . . . . .', 'a bar left without words keeps them');
 });
 
 test('every N bars: one line each, from a bar, until the bars run out', () => {

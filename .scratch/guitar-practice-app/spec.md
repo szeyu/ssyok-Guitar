@@ -130,6 +130,8 @@ app/
       practice.js       capo and sounding notes, loops, strum steps, strum summary
       hand.js           fretting-hand timing between chords, what the strumming hand plays at a slot
       judge.js          tap verdicts, per-bar misses, the results summary
+      lyrics.js         pasted lyrics fitted to sections, or one line every N bars
+      edit.js           bar editing for the builder (cells, stroke cycle, meter change) and song serialising
     audio/
       clock.js          the one clock and the look-ahead scheduler
       synth.js          the string model, strums, chucks, the click, the melody voice
@@ -216,6 +218,7 @@ prototype/              the reference, unchanged
 - **Modules tested:**
   - The song engine. Tests cover validation, slot queries, multi-chord bars, riff notes and fret overrides, mixed bars, capo and slash-chord transposition, loops at the song's end, strum steps fitting each meter, fingering suggestion avoiding barre shapes, strum-pattern summaries, and judging and results.
   - Pitch detection, as a small extra: synthetic sine tones and the string model must read back their pitch.
+  - The storage logic that needs no browser (`store.test.js`, against a fake storage): saved songs, the library merge, Remove, and each song's memory.
 - **Every song file** in the songs folder must validate. This guards the hand-charted songs.
 - **Prior art:** the prototype's `?selftest`. It has 16 checks: songs validate, bad songs get specific errors, picked and mixed bars, timed lyrics, note pitches, string model in tune, wrong-direction strokes, riff frets, two chords in a bar, strum steps per meter, suggestions avoid barres, and loop wrapping. Each of those becomes a test against the song engine, with synthetic songs written inline.
 - **Not unit-tested:** 3D, lane and chord-box drawing, screens, and audio scheduling. They are checked by screenshots of URL-flag states (library, song screen, player mid-song, Tools, results) compared against the Hum mockup, and by ear.

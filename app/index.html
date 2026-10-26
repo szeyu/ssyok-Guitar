@@ -62,13 +62,13 @@
     <div class="capoRow" role="group" aria-label="Capo fret"><span>Capo</span><div id="bCapo" class="pills"></div></div>
     <div class="capoRow" role="group" aria-label="Beats in a bar"><span>Beats in a bar</span><div id="bBeats" class="pills wide"></div></div>
   </div>
-  <p class="hint">Choose a chord for each bar, then click a stroke to change it: hit, hit harder, muted chuck, or swing past without touching. Switch a bar to picked to pluck single strings (6 is the thickest). A bar with several chords, or strummed and picked together, is edited as text.</p>
+  <p class="hint">Pick each bar's chord, then click a stroke to change it: hit, hit harder, chuck, or swing past. Picked bars pluck single strings (6 is the thickest). Bars with several chords, or strummed and picked, are edited as text.</p>
   <ol id="bBars" class="bars"></ol>
   <button id="bAdd" type="button">Add a bar</button>
   <div id="bErrors" class="errors" role="alert" hidden><h2>The song can't be saved yet</h2><ul></ul></div>
   <details>
     <summary>Paste lyrics</summary>
-    <p class="hint">Paste the whole song from a lyrics page and fit it to the sections: a heading such as [Verse 1] or a blank line ends each block, and each block goes on the next sung section, spread evenly. Intros, instrumentals, solos and outros are skipped. Or put one line every few bars.</p>
+    <p class="hint">Paste a lyrics page. A heading such as [Verse 1] or a blank line ends a block, and each block spreads over the next sung section, skipping intros, instrumentals, solos and outros. Or put one line every few bars.</p>
     <label class="area">Lyrics <textarea id="lyrText" rows="7"></textarea></label>
     <div class="fields">
       <button id="lyrFit" type="button">Fit to the sections</button>
@@ -80,7 +80,7 @@
   </details>
   <details id="bPaste">
     <summary>Paste a song file instead</summary>
-    <p class="hint">The JSON of a song file: a title, a bpm and its bars, as the songs folder has them. It replaces what is in the builder.</p>
+    <p class="hint">A song file's JSON, as in the songs folder. It replaces what is in the builder.</p>
     <label class="area">Song file <textarea id="bFile" rows="10" spellcheck="false"></textarea></label>
     <button id="bLoad" type="button">Load into the builder</button>
   </details>
