@@ -128,6 +128,7 @@ app/
       song.js           validate a song file; slot queries (bar, chord, stroke, count, syllable, note)
       chords.js         the chord library, voicing choice, easiest-fingering suggestion
       practice.js       capo and sounding notes, loops, strum steps, strum summary
+      hand.js           fretting-hand timing between chords, what the strumming hand plays at a slot
       judge.js          tap verdicts, per-bar misses, the results summary
     audio/
       clock.js          the one clock and the look-ahead scheduler

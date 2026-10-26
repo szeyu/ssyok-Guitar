@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn, handAt } from '../app/src/engine/practice.js';
+import { soundingName, strumSummary, slowBpm, capoOf, loopRange, songSlot, speedUp, TEMPO_MIN, TEMPO_MAX, countIn } from '../app/src/engine/practice.js';
+import { handAt, playedAt } from '../app/src/engine/hand.js';
 import { slotAt, sections, lyricLines } from '../app/src/engine/song.js';
 
 test('with a capo the chord names sound higher by its fret', () => {
@@ -170,4 +171,11 @@ test('a chord held over several bars: the hand heads for the next different chor
   const loop = loopRange(song, 'song', 0), rate = fullTempo(song), early = handAt(song, loop, 2, rate);
   assert.deepEqual([early.chord, early.next, early.sounds, early.move], ['G', 'D', 16, 0]);
   assert.ok(handAt(song, loop, early.lands, rate).move === 1 && early.lands < 16);
+});
+
+test('what the hands play at a slot: the stroke, its count, the fingering\'s frets and the riff marks', () => {
+  const song = { title: 'x', bpm: 80, bars: [{ chord: 'C', pluck: '5 2:3+3 1:0 . 6:12 3 2 1' }] };
+  const played = playedAt(song, 1, {});
+  assert.deepEqual([played.count, played.frets, played.riff], ['&', [-1, 3, 2, 0, 1, 0], [{ string: 4, fret: 3 }]]);
+  assert.deepEqual(played.stroke, slotAt(song, 1).stroke);
 });

@@ -10,19 +10,22 @@ export const stringZ = (s, x) => (s / 5 - .5) * (5.4 - 1.8 * x / L);
 /** Where a fingertip presses fret f: a little behind the fret wire. */
 export const dotX = f => fretX(f) + (fretX(f - 1) - fretX(f)) * .35;
 
-/** A text label on a coloured disc, as a sprite. One texture per look, shared: a canvas per label leaks at every chord change. */
+/** Text on a canvas 64 px high and w wide, at px, on a coloured disc (bg; null for none), as a texture. One texture per look,
+ *  shared: a canvas per label leaks at every chord change. */
 const labelTex = new Map();
-export function label(txt, bg, fg, font) {
-  const key = txt + bg + fg;
+export function labelTexture(txt, bg, fg, font, w = 64, px = 38) {
+  const key = [txt, bg, fg, w, px].join('\n');
   if (!labelTex.has(key)) {
-    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const c = document.createElement('canvas'); c.width = w; c.height = 64;
     const g = c.getContext('2d');
-    g.fillStyle = bg; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill();
-    g.fillStyle = fg; g.font = `700 38px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 32, 35);
+    if (bg) { g.fillStyle = bg; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill(); }
+    g.fillStyle = fg; g.font = `700 ${px}px ${font}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, w / 2, 35);
     labelTex.set(key, new THREE.CanvasTexture(c));
   }
-  return new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTex.get(key), depthTest: false, transparent: true }));
+  return labelTex.get(key);
 }
+/** A text label on a coloured disc, as a sprite. */
+export const label = (txt, bg, fg, font) => new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture(txt, bg, fg, font), depthTest: false, transparent: true }));
 
 /** Adds the guitar to the scene: { strings (one mesh each, thickest first), capoBar }. */
 export function buildGuitar(scene, C) {

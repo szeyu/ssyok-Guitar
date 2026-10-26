@@ -2,10 +2,10 @@
 // Every colour and font is read from the tokens on :root, so nothing here names one.
 import { slotAt, slotsPerBar, stretchSlots } from '../engine/song.js';
 import { songSlot, countIn } from '../engine/practice.js';
+import { PIMA } from '../engine/hand.js';
 import { css } from './dom.js';
 
 const ROW = 50, BELOW = 76;                                   // pixels per slot; room under the hit line for the string names
-const PIMA = 'pppima';                                        // the picking finger for each string: thumb on the three bass strings
 // a colour, any CSS form, as "r,g,b": a 1-pixel canvas paints it and reads it back
 const rgb = colour => { const px = new OffscreenCanvas(1, 1).getContext('2d'); px.fillStyle = colour; px.fillRect(0, 0, 1, 1); return px.getImageData(0, 0, 1, 1).data.slice(0, 3).join(); };
 let T;                                                        // T: the tokens (palette and font; drawLane calls it P), read once the stylesheet is in

@@ -1,6 +1,6 @@
 // The two 3D windows: one scene (the guitar, the fretting hand, the strum marks) seen by two cameras, each with its own
 // renderer. The pixel ratio is capped at 1.5; when frames come slow the quality governor drops it a step at a time down to
-// half, and ?perf logs frame times and the scale it chose. Colours are the design tokens, read once.
+// half, and steps it back up once frames stay fast; ?perf logs frame times and each scale it chose. Colours are the design tokens, read once.
 import * as THREE from 'three';
 import { css } from '../dom.js';
 import { buildGuitar, fretX, dotX, L } from './guitar.js';
@@ -8,6 +8,7 @@ import { createHand } from './hand.js';
 import { createStrum } from './strum.js';
 
 const PERF = new URLSearchParams(location.search).has('perf');
+const FAST_FOR = 3000;                                          // ms of fast frames before a step back up
 // the cameras look down at the guitar; up is the thickest string's side. Player's view turns them half round, so the headstock is
 // on the left and the thickest string at the bottom, as you look down at your own guitar (and as tab is written)
 const CAMS = [
@@ -19,7 +20,7 @@ const TOKENS = { wood: 'wood', neck: 'neck', fretboard: 'fretboard', headstock: 
   ink: 'ink', onScene: 'on-scene', scene2: 'scene-2', strokeD: 'stroke-d', strokeU: 'stroke-u', pluck: 'pluck', chuck: 'chuck', font: 'ui' };
 
 /** Puts the 3D into the two .scene elements. Returns { draw(state) }, or null when the browser cannot draw WebGL (the player
- *  works on without it). ready() is called when the hand model arrives, so a paused player can draw it. */
+ *  works on without it). ready() is called when a hand model arrives, so a paused player can draw it. */
 export function createScenes(elements, ready) {
   const C = Object.fromEntries(Object.entries(TOKENS).map(([k, n]) => [k, css('--' + n)]));
   C.finger = ['', ...[1, 2, 3, 4].map(f => css('--f' + f))];
@@ -33,32 +34,38 @@ export function createScenes(elements, ready) {
   } catch { return null; }
 
   const scene = new THREE.Scene(), { strings, capoBar } = buildGuitar(scene, C);
-  const hand = createHand(scene, C, ready), strum = createStrum(scene, C, strings);
+  const hand = createHand(scene, C, ready), strum = createStrum(scene, C, strings, ready);
   const cams = CAMS.map(() => new THREE.PerspectiveCamera(40, 1, 1, 500));
-  let scale = Math.min(devicePixelRatio, 1.5), slow = 16, last = 0, perf = { n: 0, f: 0, s: 0, gap: 0 };
+  const top = Math.min(devicePixelRatio, 1.5);
+  let scale = top, slow = 16, fast = 0, last = 0, perf = { n: 0, f: 0, s: 0, gap: 0 };
   renderers.forEach(r => r.setPixelRatio(scale));
 
-  // the governor: a running average of the time between frames; above 28 ms, a quarter fewer pixels, down to half
+  // the governor: a running average of the time between frames; above 28 ms, a quarter fewer pixels, down to half; under 20 ms
+  // for FAST_FOR, a quarter more, up to the cap
+  const step = by => {
+    scale = Math.min(top, Math.max(.5, scale + by)); slow = 16; fast = 0;
+    renderers.forEach(r => r.setPixelRatio(scale));
+    if (PERF) console.log('PERF scale', scale, by < 0 ? 'down' : 'up');
+  };
   function govern(now, playing) {
     const dt = now - last; last = now;
     if (!playing || dt > 200) return;                            // paused, or the first frame after a pause: not a measurement
     slow += (dt - slow) * .05;
-    if (slow > 28 && scale > .5) {
-      scale = Math.max(.5, scale - .25); slow = 16;
-      renderers.forEach(r => r.setPixelRatio(scale));
-      if (PERF) console.log('PERF scale', scale);
-    }
+    fast = slow < 20 ? fast + dt : 0;
+    if (slow > 28 && scale > .5) step(-.25);
+    else if (fast > FAST_FOR && scale < top) step(.25);
   }
 
   return {
-    /** Draws both windows. state: { pos, at, hand: { cur, nxt, m }, capo, playing, lit, playerView, showHand } (see the player). */
+    /** Draws both windows. state: { pos, at, hand: { cur, nxt, move }, capo, playing, lit, still, playerView, showHand } (see the player). */
     draw(state) {
       const t0 = performance.now();
       govern(t0, state.playing);
       capoBar.visible = state.capo > 0;
       if (state.capo) capoBar.position.x = dotX(state.capo);
-      hand.update({ ...state.hand, capo: state.capo, show: state.showHand });
-      strum.update(state);
+      const { pos, at, capo, lit, still, playerView } = state;
+      hand.update({ ...state.hand, capo, show: state.showHand, still });
+      strum.update({ pos, at, capo, lit, still, playerView, show: state.showHand });
       const times = renderers.map((r, i) => {
         const el = r.domElement.parentElement, w = el.clientWidth, h = el.clientHeight, cam = cams[i], c = CAMS[i];
         if (!w || !h) return 0;

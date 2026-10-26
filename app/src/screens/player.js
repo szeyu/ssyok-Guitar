@@ -1,9 +1,10 @@
 // The player: the top bar with the song and its section timeline, the Tools menu, the stage (the two 3D windows with the
 // floating chord box, the strum lane), and the transport. One clock drives the sound, the 3D, the lane and the count-in;
 // nothing is drawn while the player is hidden, or while it is paused with nothing changing.
-import { slotAt, slotsPerBar, sections, lyricLines, riffMarks } from '../engine/song.js';
+import { slotAt, slotsPerBar, sections, lyricLines } from '../engine/song.js';
 import { voicing } from '../engine/chords.js';
-import { loopRange, songSlot, speedUp, countIn, handAt, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { loopRange, songSlot, speedUp, countIn, TEMPO_MIN, TEMPO_MAX } from '../engine/practice.js';
+import { handAt, playedAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
 import { drawLane, positionAt } from '../views/lane.js';
@@ -18,12 +19,12 @@ const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this cho
 
 let song, picks, capo = 0, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
 let playerView = true, showHand = true, scenes;               // scenes: the 3D windows, made on first opening (null: no WebGL)
-let drawn = { slot: -1, words: '', box: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
+let drawn = { slot: -1, words: '', chord: '', next: '' }, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
 const scheduled = new Map();                                   // slot -> audio time, for the ?log trace
 const rate = () => bpm / 60 * (song.compound ? 3 : 2);          // slots a second; bpm is the song's unit (the dotted quarter in 6/8)
 const per = () => slotsPerBar(song);
 const fretsOf = chord => voicing(song, chord, picks).frets;
-const still = matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: the hand still moves (it shows the change), the strings do not glow or shake
+const still = matchMedia('(prefers-reduced-motion: reduce)');   // reduced motion: the hand still moves (it shows the change); the strings do not glow or shake, the strum arrow does not swing, the fingers do not pop
 
 const clock = createClock({
   play(slot, t, counting) {
@@ -56,10 +57,9 @@ function frame() {
   const hand = handAt(song, loop, pos, rate());
   showChords(hand);
   if (scenes?.draw) {                                          // still loading: a promise
-    const m = hand.move * hand.move * (3 - 2 * hand.move);      // eased: the fingers set off and land gently
-    const at = i => { const s = songSlot(song, loop, i), { stroke, count, chord } = slotAt(song, s); return { stroke, count, frets: fretsOf(chord), riff: riffMarks(song, s) }; };
-    scenes.draw({ pos, at, capo, playing: clock.playing, lit: clock.playing && !countLeft && !still.matches, playerView, showHand,
-      hand: { cur: voicing(song, hand.chord, picks), nxt: voicing(song, hand.next, picks), m } });
+    const eased = hand.move * hand.move * (3 - 2 * hand.move);  // the fingers set off and land gently
+    scenes.draw({ pos, at: i => playedAt(song, songSlot(song, loop, i), picks), capo, playing: clock.playing, lit: clock.playing && !countLeft && !still.matches,
+      still: still.matches, playerView, showHand, hand: { cur: voicing(song, hand.chord, picks), nxt: voicing(song, hand.next, picks), move: eased } });
   }
   const slot = Math.floor(pos), songAt = songSlot(song, loop, slot);
   if (sped && heardTime() >= sped.time) { showTempo(sped.bpm); sped = null; }
@@ -76,8 +76,8 @@ function frame() {
 
 // the floating chord box: the chord held now and the next one, redrawn only when they change
 function showChords({ chord, next }) {
-  if (drawn.box === chord + '|' + next) return;
-  drawn.box = chord + '|' + next;
+  if (drawn.chord === chord && drawn.next === next) return;
+  drawn.chord = chord; drawn.next = next;
   $('chordFloat').ariaLabel = `${chord}, next: ${next}`;
   $('chordFloat').replaceChildren(el('p', { textContent: chord }), el('p', { className: 'nx' }, 'next: ', el('b', { textContent: next })),
     chordBox(voicing(song, chord, picks)), chordBox(voicing(song, next, picks)));
@@ -152,7 +152,7 @@ export function setView({ player = playerView, hand = showHand } = {}) {
 /** Opens the player for a song with your fingering picks and capo, at a tempo, at a bar (0 = the start), paused or playing. */
 export function openPlayer(s, { picks: p = {}, capo: c = 0, tempo = s.bpm, bar = 0, play = false } = {}) {
   if (clock.playing) togglePlay();
-  song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '', box: '' };
+  song = s; picks = p; capo = c; kind = 'song'; drawn = { slot: -1, words: '', chord: '', next: '' };
   // the 3D loads on first opening, so nothing of it exists behind the library; without WebGL (or offline) the player goes on without it
   if (scenes === undefined) scenes = import('../views/scene/index.js').then(m => { scenes = m.createScenes([...document.querySelectorAll('#player .scene')], redraw); redraw(); }, () => { scenes = null; });
   $('playerSong').textContent = song.title;
