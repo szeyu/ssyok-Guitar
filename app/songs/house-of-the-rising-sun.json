@@ -1,0 +1,33 @@
+{
+ "title": "House of the Rising Sun",
+ "bpm": 76,
+ "capo": 0,
+ "beats": 3,
+ "compound": true,
+ "bars": [
+  {"chord": "Am", "pluck": "5 3 2 1 2 3", "section": "Intro, picked"},
+  {"chord": "C", "pluck": "5 3 2 1 2 3"},
+  {"chord": "D", "pluck": "4 3 2 1 2 3"},
+  {"chord": "F", "pluck": "4 3 2 1 2 3"},
+  {"chord": "Am", "pluck": "5 3 2 1 2 3"},
+  {"chord": "C", "pluck": "5 3 2 1 2 3"},
+  {"chord": "E", "pluck": "6 3 2 1 2 3"},
+  {"chord": "E", "pluck": "6 3 2 1 2 3"},
+  {"chord": "Am", "strum": ">DD>DD", "lyric": "(There) is a", "section": "Verse, strummed"},
+  {"chord": "C", "strum": ">DD>DD", "lyric": "house in"},
+  {"chord": "D", "strum": ">DD>DD", "lyric": "New Or-"},
+  {"chord": "F", "strum": ">DD>DD", "lyric": "leans, they"},
+  {"chord": "Am", "strum": ">DD>DD", "lyric": "call the"},
+  {"chord": "C", "strum": ">DD>DD", "lyric": "Ris-ing"},
+  {"chord": "E", "strum": ">DD>DD", "lyric": "Sun,"},
+  {"chord": "E", "strum": ">DD>DD", "lyric": "and it's"},
+  {"chord": "Am", "strum": ">DD>DD", "lyric": "been the"},
+  {"chord": "C", "strum": ">DD>DD", "lyric": "ru-in of"},
+  {"chord": "D", "strum": ">DD>DD", "lyric": "man-y a poor"},
+  {"chord": "F", "strum": ">DD>DD", "lyric": "boy, and"},
+  {"chord": "Am", "strum": ">DD>DD", "lyric": "God, I"},
+  {"chord": "E", "strum": ">DD>DD", "lyric": "know I'm"},
+  {"chord": "Am", "strum": ">DD>DD", "lyric": "one."},
+  {"chord": "E", "strum": ">DD>DD"}
+ ]
+}

@@ -1,0 +1,24 @@
+{
+ "title": "Jingle Bells",
+ "bpm": 104,
+ "capo": 0,
+ "beats": 4,
+ "bars": [
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . B4 . B4 . . .", "section": "Chorus", "syllables": "Jin- . gle . bells, . . ."},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . B4 . B4 . . .", "syllables": "jin- . gle . bells, . . ."},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . D5 . G4 . . A4", "syllables": "jin- . gle . all . . the"},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . . . . . . .", "syllables": "way. . . . . . . ."},
+  {"chord": "C", "strum": "D.DUD.DU", "tune": "C5 . C5 . C5 . . C5", "syllables": "Oh . what . fun . . it"},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "C5 . B4 . B4 . B4 B4", "syllables": "is . to . ride . in a"},
+  {"chord": "A", "strum": "D.DUD.DU", "tune": "B4 . A4 . A4 . B4 .", "syllables": "one- . horse . o- . pen ."},
+  {"chord": "D", "strum": "D.DUD.DU", "tune": "A4 . . . D5 . . .", "syllables": "sleigh, . . . hey! . . ."},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . B4 . B4 . . .", "syllables": "Jin- . gle . bells, . . ."},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . B4 . B4 . . .", "syllables": "jin- . gle . bells, . . ."},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . D5 . G4 . . A4", "syllables": "jin- . gle . all . . the"},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "B4 . . . . . . .", "syllables": "way. . . . . . . ."},
+  {"chord": "C", "strum": "D.DUD.DU", "tune": "C5 . C5 . C5 . . C5", "syllables": "Oh . what . fun . . it"},
+  {"chord": "G", "strum": "D.DUD.DU", "tune": "C5 . B4 . B4 . B4 B4", "syllables": "is . to . ride . in a"},
+  {"chord": "D", "strum": "D.DUD.DU", "tune": "D5 . D5 . C5 . A4 .", "syllables": "one- . horse . o- . pen ."},
+  {"chord": "G", "strum": "D.......", "tune": "G4 . . . . . . .", "syllables": "sleigh. . . . . . . ."}
+ ]
+}

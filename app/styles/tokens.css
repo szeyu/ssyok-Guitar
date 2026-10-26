@@ -1,0 +1,17 @@
+/* The Hum design tokens, from the prototype: cream card stock, blue-black ink, one pear accent, the 3D scene as a dark window. Every colour and font in the app comes from here. */
+:root {
+  color-scheme: light;
+  --bg: #f7f5ec; --panel: #fcfbf6; --raise: #f0ede0; --deep: #e6e1d1; --line: #d7d4c9; --rim: #d2c6aa; --fringe: #fefcf8;
+  --ink: #12161c; --ink-2: #272c32; --mute: #565b63; --dim: #81878f;
+  --brass: #f7d21a; --brass-deep: #c9a000; --brass-ink: #12161c; --link: #0064be;
+  --bad: #c92f33; --good: #00713e; --coral: #ff5e63; --mint: #70e093; --sugar: #58afe0;
+  --f1: #f7d21a; --f2: #70e093; --f3: #58afe0; --f4: #ff5e63;
+  --stroke-d: #f2b705; --stroke-u: #3d9bd6; --pluck: #3fbf72; --chuck: #9a9488;
+  --lane: #ebd4b3; --lane-str: #8f6846; --lane-rule: #c9ad86;
+  --scene: #28313b; --scene-2: #182029; --on-scene: #eae8df;
+  --serif: 'Chillax', ui-rounded, system-ui, sans-serif; --ui: var(--serif);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9 -4.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.05'/%3E%3C/svg%3E");
+  --shadow-card: 0 1px 2px #12161c10, 0 12px 28px -14px #12161c38;
+  --ease-snap: cubic-bezier(.22, 1, .36, 1); --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --shade-1: #12161c1f; --shade-2: #12161c4d; --shade-3: #12161c73; --mint-wash: #70e09359; --lane-shade: #ae7d5280;
+}
