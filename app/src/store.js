@@ -89,7 +89,7 @@ export async function loadSongs(base = 'songs/', storage = browserStorage()) {
 
 async function loadFiles(base) {
   const notes = [];
-  if (location.protocol === 'file:') return { songs: [], notes: ['The songs folder cannot be read when the page is opened as a file. Serve the repo (python3 -m http.server 8765) and open http://localhost:8765/app/ instead.'] };
+  if (location.protocol === 'file:') return { songs: [], notes: ['The songs folder cannot be read when the page is opened as a file. Serve the repo (node tools/serve.js) and open http://localhost:8765/app/ instead.'] };
   const get = async f => {
     const r = await fetch(base + f, { cache: 'no-store' });
     if (!r.ok) throw new Error('the server answered ' + r.status);

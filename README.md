@@ -6,10 +6,10 @@ It's for personal practice. Nothing is sold.
 
 ## Run it
 
-The app is plain JavaScript with no build step and no npm packages. Serve the repo root and open `/app/`:
+The app is plain JavaScript with no build step and no npm packages. Serve the repo root and open `/app/`. This little server tells the browser not to cache, so a plain reload always picks up changes:
 
 ```sh
-python3 -m http.server 8765
+node tools/serve.js
 # then open http://localhost:8765/app/
 ```
 
