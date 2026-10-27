@@ -172,6 +172,8 @@ button:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; tran
 
 .stage { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; min-height: 0; padding: 16px 16px 12px }
 .views { display: grid; grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0 }
+.stage.across { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, .8fr) minmax(380px, 1.2fr) }   /* Sideways lane: the views side by side, the lane under them */
+.stage.across .views { grid-template-rows: minmax(0, 1fr); grid-template-columns: 1fr 1fr }
 .view, .laneSheet { position: relative; min-height: 0; padding: 8px; border-radius: 22px; background: var(--grain), var(--panel); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line) }
 .scene { position: absolute; inset: 8px; border-radius: 18px; background: radial-gradient(120% 90% at 30% 20%, var(--scene), var(--scene-2)); box-shadow: inset 0 2px 6px var(--shade-3) }
 .tag { position: absolute; top: 20px; left: 20px; padding: 4px 12px; border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 12px; font-weight: 600 }

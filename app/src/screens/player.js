@@ -9,7 +9,7 @@ import { handAt, playedAt, cameraFretAt } from '../engine/hand.js';
 import { createClock, audioContext, heardTime } from '../audio/clock.js';
 import { createSynth } from '../audio/synth.js';
 import { onOnset } from '../audio/mic.js';
-import { drawLane, positionAt, hitLineY } from '../views/lane.js';
+import { drawLane, positionAt, hitLine } from '../views/lane.js';
 import { chordBox } from '../views/chordbox.js';
 import { el } from '../views/dom.js';
 import { showScreen, onScreen, screenShowing } from './shell.js';
@@ -22,6 +22,9 @@ const ICON = { play: 'M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5
 const LOOPS = [['song', 'whole song'], ['bar', 'this bar'], ['change', 'this chord change']];
 
 let song, source, step = null, picks, capo = 0, onBar = null, bpm = 80, kind = 'song', loop, start = 0, melody = true, ramp = false, synth, raf = 0;
+// across: the lane sideways under the 3D views, the default; upright when you last chose it (remembered in this browser)
+const LAYOUT_KEY = 'guitar.lane';
+let across = (() => { try { return localStorage.getItem(LAYOUT_KEY) !== 'down'; } catch { return true; } })();   // sideways unless you chose upright
 let playerView = true, showHand = true, scenes;               // scenes: the 3D windows, made on first opening (null: no WebGL)
 // song: what plays, the source song or a strum step's stage made from it; step: the strum step playing, null = the whole song
 let drawn, sped = null;            // sped: { time, bpm }, a speed-up the readout shows once it is heard
@@ -68,7 +71,7 @@ function frame() {
   clock.tick();
   if (clock.over) return finish();
   const { pos, countLeft } = clock.now();
-  drawLane($('lane'), { song, loop, pos, countLeft, frets: fretsOf });
+  drawLane($('lane'), { song, loop, pos, countLeft, frets: fretsOf, across });
   const hand = handAt(song, loop, pos, rate());
   showChords(hand);
   if (scenes?.draw) {                                          // still loading: a promise
@@ -121,7 +124,12 @@ function showWhere(songAt) {
 
 // ---- judging: the arrow keys tap along, a verdict word rises off the hit line, and the song's end shows the results ----
 const VERDICT_ABOVE = 56, VERDICT_RISE = 48, VERDICT_MS = 900;   // px the word sits above the hit line, px it rises, how long it shows
-const placeVerdict = () => { $('verdict').style.top = `${$('lane').offsetTop + hitLineY($('lane')) - VERDICT_ABOVE}px`; };
+// over the hit line; sideways, at the top of the lane just right of its hit line
+const placeVerdict = () => {
+  const lane = $('lane'), v = $('verdict').style, at = hitLine(lane, across);
+  v.top = `${lane.offsetTop + (across ? 10 : at.y - VERDICT_ABOVE)}px`;
+  v.left = across ? `${lane.offsetLeft + at.x + 12}px` : ''; v.margin = across ? '0' : '';
+};
 /** Shows a verdict ({ text, tone } as judge gives it) over the hit line: rising and fading, or with held true staying put (the ?verdict flag). */
 export function showVerdict({ text, tone }, held = false) {
   const v = $('verdict');
@@ -216,10 +224,11 @@ export function toggleTools(open = $('tools').hidden) {
 }
 const toggle = (id, on) => $(id).setAttribute('aria-pressed', String(on));
 
-/** Player's view (on: the guitar as you hold it; off: as the audience sees it) and Show the hand. */
-export function setView({ player = playerView, hand = showHand } = {}) {
-  toggle('playerView', playerView = player); toggle('showHand', showHand = hand);
-  redraw();
+/** Player's view (on: the guitar as you hold it; off: as the audience sees it), Show the hand, and Sideways lane (lane). */
+export function setView({ player = playerView, hand = showHand, lane = across } = {}) {
+  toggle('playerView', playerView = player); toggle('showHand', showHand = hand); toggle('laneAcross', across = lane);
+  document.querySelector('#player .stage').classList.toggle('across', across);
+  placeVerdict(); redraw();
 }
 
 /** Opens the player for a song with your fingering picks and capo, at a strum step's stage (0 = the whole song), at a tempo
@@ -277,12 +286,14 @@ $('melody').onclick = () => toggle('melody', melody = !melody);
 $('ramp').onclick = () => toggle('ramp', ramp = !ramp);
 $('playerView').onclick = () => setView({ player: !playerView });
 $('showHand').onclick = () => setView({ hand: !showHand });
+$('laneAcross').onclick = () => { setView({ lane: !across }); try { localStorage.setItem(LAYOUT_KEY, across ? 'across' : 'down'); } catch {} };
+toggle('laneAcross', across); document.querySelector('#player .stage').classList.toggle('across', across);   // as last chosen
 $('listen').onclick = () => setListening(!listening);
 $('playerHome').onclick = () => showScreen('library');
 $('playerSong').onclick = () => showScreen('song');
 $('lane').onclick = e => {                                      // clicking the lane jumps to the bar under the pointer
   const { pos } = clock.now(), r = e.currentTarget.getBoundingClientRect();
-  const songAt = songSlot(song, loop, Math.max(0, Math.round(positionAt(e.currentTarget, e.clientY - r.top, pos))));
+  const songAt = songSlot(song, loop, Math.max(0, Math.round(positionAt(e.currentTarget, e.clientX - r.left, e.clientY - r.top, pos, across))));
   seek(Math.floor(songAt / per()) * per());
 };
 $('lane').onkeydown = e => {                                    // with the lane focused, the arrows jump a bar back or on
