@@ -1,17 +1,18 @@
 {
  "title": "Happy Birthday",
- "bpm": 96,
- "capo": 0,
+ "bpm": 90,
+ "capo": 1,
  "beats": 3,
+ "chords": {"G7": [{"name": "Open", "frets": [3, 2, 0, 0, 0, 1], "fingers": [3, 2, 0, 0, 0, 1], "tip": "G shape with finger 1 on the 1st fret of the high e string."}]},
  "bars": [
-  {"chord": "G", "strum": "....D.", "tune": "_ . . . D4 D4", "syllables": ". . . . Hap- py"},
-  {"chord": "G", "strum": "D.DUDU", "tune": "E4 . D4 . G4 .", "syllables": "birth- . day . to ."},
-  {"chord": "D", "strum": "D.DUDU", "tune": "F#4 . . . D4 D4", "syllables": "you, . . . hap- py"},
-  {"chord": "D", "strum": "D.DUDU", "tune": "E4 . D4 . A4 .", "syllables": "birth- . day . to ."},
-  {"chord": "G", "strum": "D.DUDU", "tune": "G4 . . . D4 D4", "syllables": "you, . . . hap- py"},
-  {"chord": "G", "strum": "D.DUDU", "tune": "D5 . B4 . G4 .", "syllables": "birth- . day . dear ."},
-  {"chord": "C", "strum": "D.DUDU", "tune": "F#4 . E4 . C5 C5", "syllables": "friend, . . . hap- py"},
-  {"chord": "G", "strum": "D.DUDU", "tune": "B4 . G4 . A4 .", "syllables": "birth- . day . to ."},
-  {"chord": "G", "strum": "D.....", "tune": "G4 . . . . .", "syllables": "you! . . . . ."}
+  {"chord": "C", "strum": "......", "section": "Song", "syllables": ". . . . Hap- py"},
+  {"chord": "C", "strum": "D.DUDU", "syllables": "Birth- . day . to ."},
+  {"chord": "G7", "strum": "D.DUDU", "syllables": "You . . . Hap- py"},
+  {"chord": "G7", "strum": "D.DUDU", "syllables": "Birth- . day . to ."},
+  {"chord": "C", "strum": "D.DUDU", "syllables": "You . . . Hap- py"},
+  {"chord": "C", "strum": "D.DUDU", "syllables": "Birth- . day . dear ."},
+  {"chord": "F", "strum": "D.DUDU", "syllables": "-NAME- . . . Hap- py"},
+  {"chord": "C C G7", "strum": "D.DUDU", "syllables": "Birth- . day . to ."},
+  {"chord": "C", "strum": "D.....", "syllables": "You . . . . ."}
  ]
 }
