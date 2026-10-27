@@ -26,7 +26,7 @@ export const capoOf = (song, chosen) => chosen ?? song.capo ?? 0;
 export const strumSummary = song => strumPatterns(song).map(p => ({ ...p, most: p.bars > song.bars.length / 2 }));
 
 /** The tempo range the player offers, in the song's own unit (quarter notes, or the dotted-quarter pulse in 6/8). */
-export const TEMPO_MIN = 40, TEMPO_MAX = 140;
+export const TEMPO_MIN = 40, TEMPO_MAX = 200;   // fast enough for any song in the library at full speed (Feliz Navidad is 150)
 
 /** "A bit slower" on the results card: 85% of the tempo just played, rounded, no slower than TEMPO_MIN. */
 export const slower = bpm => Math.max(TEMPO_MIN, Math.round(bpm * .85));

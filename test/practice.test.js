@@ -114,9 +114,9 @@ test('speeding up adds 5 bpm each time a loop comes round, up to the top of the 
   assert.equal(speedUp(TEMPO_MAX), TEMPO_MAX);
 });
 
-test('the tempo range is 40 to 140, as the prototype has it', () => {
-  assert.deepEqual([TEMPO_MIN, TEMPO_MAX], [40, 140]);
-  assert.equal(speedUp(138), 140);
+test('the tempo range is 40 to 200, so a song as fast as Feliz Navidad (150) plays at full speed', () => {
+  assert.deepEqual([TEMPO_MIN, TEMPO_MAX], [40, 200]);
+  assert.equal(speedUp(198), 200);
 });
 
 test('the sections along the top: where each starts and how many bars it runs', () => {

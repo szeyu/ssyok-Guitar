@@ -38,11 +38,17 @@ export function createSynth(ctx) {
     }
     return bufs.get(key);
   }
+  // fades a ringing note out from time t, then stops it, so a fast song doesn't pile up dozens of silent notes still playing
+  function hush(r, t, fade) {
+    if (!r) return;
+    r.g.gain.setTargetAtTime(0, t, fade);
+    try { r.src.stop(t + fade * 8); } catch {}                 // stop() on a note already told to stop throws; that's fine
+  }
   function twang(s, fret, t, vel) {
     const { buf, rate } = pluckBuf(stringHz(s, fret)), src = ctx.createBufferSource(), g = ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate; g.gain.setValueAtTime(vel * (.9 + .2 * Math.random()), t);
-    ringing[s]?.gain.setTargetAtTime(0, t, .006);              // a string sounds one note at a time: the new pluck cuts the old one
-    ringing[s] = g; src.connect(g).connect(body); src.start(t);
+    hush(ringing[s], t, .006);                                 // a string sounds one note at a time: the new pluck cuts the old one
+    ringing[s] = { g, src }; src.connect(g).connect(body); src.start(t);
   }
   function blip(freq, t, gain, dur) {
     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -66,7 +72,7 @@ export function createSynth(ctx) {
       for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
       const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
       src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 1500; g.gain.value = .4;
-      ringing.forEach(r => r?.gain.setTargetAtTime(0, t, .008));
+      ringing.forEach(r => hush(r, t, .008));
       src.connect(f).connect(g).connect(out); src.start(t);
     },
     /** The click on the pulse; strong on the first of a bar. */
