@@ -1,7 +1,7 @@
 // Start-up: load the songs, draw the library, and read the URL flags.
 // URL flags open a state directly, for screenshots and checks:
 //   ?song=<index>  that song's song screen        ?capo=<fret>  its capo        ?pick=<chord>  the fingering picker for a chord
-//   &play=1        the player, paused             &at=<bar>     at that bar (1 = the first)
+//   &play=1        the player, paused             &at=<bar>     at that bar (1 = the first; 7.5: halfway through bar 7)
 //   &tools=1       with the Tools menu open       &bpm=<n>      at that tempo  &go=1         playing (needs autoplay allowed)
 //   &view=audience the 3D seen as the audience sees it   &hand=0  without the 3D hand   &perf  3D frame times and resolution scale
 //   &drill=<n>     the player at strum step n (play=1 not needed)
@@ -47,7 +47,7 @@ if (library.songs[Q.get('song')]) {
   if (Q.has('sheet')) showSheet(library.songs[Q.get('song')], bar => playSong({ bar }), Q.get('sheet') === 'raw');
   if (Q.has('edit')) openBuilder(library.songs[Q.get('song')], 'song');
   if (['play', 'drill', 'verdict', 'done', 'tuner'].some(f => Q.has(f))) {
-    playSong({ step: Math.round(+Q.get('drill')) || 0, tempo: +Q.get('bpm') || undefined, bar: (Math.round(+Q.get('at')) || 1) - 1, play: Q.has('go') });
+    playSong({ step: Math.round(+Q.get('drill')) || 0, tempo: +Q.get('bpm') || undefined, bar: (+Q.get('at') || 1) - 1, play: Q.has('go') });
     if (Q.has('tools')) toggleTools(true);
     setView({ player: Q.get('view') !== 'audience', hand: Q.get('hand') !== '0' });
     if (Q.has('verdict')) showVerdict({ text: Q.get('verdict') || 'Good', tone: Q.get('tone') || (Q.get('verdict') ? 'off' : 'good') }, true);

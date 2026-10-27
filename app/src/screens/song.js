@@ -15,6 +15,7 @@ const $ = id => document.getElementById(id), paren = t => t && ` (${t})`;
 const SUGGEST = 'Suggest easiest fingerings', SHOWN_STRUMS = 3;
 
 let song, memory, picks, pickerFor = '';
+const picker = $('picker');                                    // a dropdown under the open chord's card
 const rememberChange = change => { Object.assign(memory, change); remember(browserStorage(), song.title, change); };
 
 /** Draws the song screen for a song, with the picker closed. */
@@ -45,6 +46,9 @@ function renderResume() {
   $('resume').onclick = () => playSong({ bar });
 }
 
+// a click anywhere but the open card and its list closes the list
+document.addEventListener('click', e => { if (pickerFor && e.target.isConnected && !e.target.closest('.chordSlot:has(#picker)')) closePicker(); });   // (a card re-drawn by its own click is no longer connected)
+
 onScreen('song', { esc: () => closePicker() || showScreen('library'), show: renderResume });
 document.getElementById('songBack').onclick = () => showScreen('library');
 
@@ -63,13 +67,15 @@ export function setCapo(fret) { rememberChange({ capo: fret }); renderCapo(); }
 function renderChords() {
   $('voicings').replaceChildren(...chordsUsed(song).map(name => {
     const v = voicing(song, name, picks), ways = chordShapes(song, name).length;
-    return el('button', { type: 'button', className: 'chordCard' + (name === pickerFor ? ' on' : ''), title: v.tip ?? '', ariaExpanded: String(name === pickerFor), onclick: () => { openPicker(name === pickerFor ? '' : name); if (pickerFor) $('picker').scrollIntoView({ block: 'nearest' }); } },
+    const card = el('button', { type: 'button', className: 'chordCard' + (name === pickerFor ? ' on' : ''), title: v.tip ?? '', ariaExpanded: String(name === pickerFor), onclick: () => { openPicker(name === pickerFor ? '' : name); if (pickerFor) picker.scrollIntoView({ block: 'nearest' }); } },
       el('b', { className: 'name', textContent: name }), chordBox(v), el('span', { className: 'note', textContent: v.name }),
-      el('span', { className: 'many', textContent: ways > 1 ? `${ways} ways to play it` : '' }));
+      el('span', { className: 'many', textContent: ways > 1 ? `${ways} ways to play it ▾` : '' }));
+    return el('div', { className: 'chordSlot' }, card, ...name === pickerFor ? [picker] : []);
   }));
-  const picker = $('picker');
   picker.hidden = !pickerFor;
   if (!pickerFor) return picker.replaceChildren();
+  const slot = picker.parentElement.getBoundingClientRect();      // a card on the right half opens its list leftwards, so it stays on screen
+  picker.classList.toggle('end', slot.left + slot.width / 2 > document.documentElement.clientWidth / 2);
   const on = voicingIndex(song, pickerFor, picks);
   picker.replaceChildren(...chordShapes(song, pickerFor).map((v, i) => el('button', {
     type: 'button', className: 'card' + (i === on ? ' sel' : ''), ariaPressed: String(i === on),
